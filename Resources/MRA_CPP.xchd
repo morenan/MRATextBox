@@ -1,0 +1,238 @@
+<?xml version="1.0"?>
+<MRACodeDocument name="cpp" extensions=".c;.h;.cc;.cpp;.hpp">
+  <Resources>
+    <Color name="black" color="#FF000000"/>
+    <Color name="white" color="#FFFFFFFF"/>
+    <Color name="comment_color" color="#FF408062"/>
+    <Color name="macro_color" color="#FF28A164"/>
+    <Color name="string_color" color="#FF938255"/>
+    <Color name="keyword_color" color="#FF49A3E2" weight="Bold"/>
+    <Color name="keyword_condition_color" baseon="keyword_color"/>
+    <Color name="keyword_branch_color" baseon="keyword_color"/>
+    <Color name="keyword_basetype_color" baseon="keyword_color"/>
+    <Color name="keyword_typeused_color" baseon="keyword_color"/>
+    <Color name="keyword_security_color" baseon="keyword_color"/>
+    <Color name="keyword_operator_color" baseon="keyword_color"/>
+    <Color name="keyword_visit_color" baseon="keyword_color"/>
+  </Resources>
+  <Definitions>
+    <Zone name="block_zone" baseon="{block_zone}">
+      <Left><Keyword name="block_start" text="{" relation="all"/></Left>
+      <Right><Keyword name="block_end" text="}" relation="all"/></Right>
+    </Zone>
+    <Zone name="params_zone" baseon="{params_zone}">
+      <Left><Keyword name="params_start" text="(" relation="all"/></Left>
+      <Right><Keyword name="params_end" text=")" relation="all"/></Right>
+    </Zone>
+    <Zone name="array_zone" baseon="{array_zone}">
+      <Left><Keyword name="array_start" text="[" relation="all"/></Left>
+      <Right><Keyword name="array_end" text="]" relation="all"/></Right>
+    </Zone>
+    <Zone name="char_zone" attribute="comment" fill="string_color" baseon="{char_zone}">
+      <Left><Keyword name="char_start" relation="all"/>&apos;</Left>
+      <Right><Keyword name="char_end" relation="all"/>&apos;</Right>
+    </Zone>
+    <Zone name="string_zone" attribute="comment" fill="string_color" baseon="{string_zone}">
+      <Left><Keyword name="string_start" relation="all"/>&quot;</Left>
+      <Right><Keyword name="string_end" relation="all"/>&quot;</Right>
+    </Zone>
+    <Zone name="comment_zone" attribute="comment" fill="comment_color" baseon="{comment_zone}">
+      <Left><Keyword name="comment_start" text="/*" relation="all"/></Left>
+      <Right><Keyword name="comment_end" text="*/" relation="all"/></Right>
+    </Zone>
+    <Line name="macro_line" fill="macro_color">
+      <Left><Keyword name="macro_start" text="#" relation="all"/></Left>
+    </Line>
+    <Line name="comment_line" attribute="comment" fill="comment_color">
+      <Left><Keyword name="comment_line_start" text="//" relation="all"/></Left>
+    </Line>
+    <!--条件类-->
+    <Keywords name="keyword_condition" color="keyword_condition_color">
+      <Word name="key_if" baseon="{key_if}">if</Word>
+      <Word name="key_while" baseon="{key_while}">while</Word>
+      <Word name="key_for" baseon="key_if">for</Word>
+      <Word name="key_do">do</Word>
+      <Word name="key_switch">switch</Word>
+      <Word name="key_case">case</Word>
+      <Word name="key_default">default</Word>
+    </Keywords>
+    <!--跳转类-->
+    <Keywords name="keyword_branch" color="keyword_branch_color">
+      <Word name="key_break" baseon="{key_break}">break</Word>
+      <Word name="key_continue" baseon="{key_continue}">continue</Word>
+      <Word name="key_return" baseon="{key_return}">return</Word>
+      <Word name="key_goto">goto</Word>
+    </Keywords>
+    <!--基本类型类-->
+    <Keywords name="keyword_basetype" color="keyword_basetype_color">
+      <Word name="key_void" baseon="{key_void}">void</Word>
+      <Word name="key_char" baseon="{key_char}">char</Word>
+      <Word name="key_short" baseon="{key_short}">short</Word>
+      <Word name="key_int" baseon="{key_int}">int</Word>
+      <Word name="key_long" baseon="{key_long}">long</Word>
+      <Word name="key_float" baseon="{key_float}">float</Word>
+      <Word name="key_double" baseon="{key_double}">double</Word>
+      <Word name="key_unsigned">unsigned</Word>
+      <Word name="key_signed">signed</Word>
+    </Keywords>
+    <!--类型定义类-->
+    <Keywords name="keyword_typeused" color="keyword_typeused_color">
+      <Word name="key_class" baseon="{key_class}">class</Word>
+      <Word name="key_struct" baseon="{key_struct}">struct</Word>
+      <Word name="key_enum">enum</Word>
+      <Word name="key_union">union</Word>
+      <Word name="key_typedef">typedef</Word>
+      <Word name="key_template">template</Word>
+    </Keywords>
+    <!--权限类-->
+    <Keywords name="keyword_security" color="keyword_security_color">
+      <Word name="key_const">const</Word>
+      <Word name="key_static">static</Word>
+      <Word name="key_extern">extern</Word>
+      <Word name="key_virtual">virtual</Word>
+      <Word name="key_private">private</Word>
+      <Word name="key_public">public</Word>
+      <Word name="key_protected">protected</Word>
+      <Word name="key_using">using</Word>
+      <Word name="key_namespace">namespace</Word>
+      <Word name="key_friend">friend</Word>
+      <Word name="key_volatile">volatile</Word>
+    </Keywords>
+    <!--运算符类-->
+    <Keywords name="keyword_operator" color="keyword_operator_color">
+      <!--运算-->
+      <Word name="key_add" baseon="{key_add}">+</Word>
+      <Word name="key_sub" baseon="{key_sub}">-</Word>
+      <Word name="key_mul" baseon="{key_mul}">*</Word>
+      <Word name="key_div" baseon="{key_div}">/</Word>
+      <Word name="key_and" baseon="{key_and}">&amp;</Word>
+      <Word name="key_or" baseon="{key_or}">|</Word>
+      <Word name="key_not" baseon="{key_not}">~</Word>
+      <Word name="key_shl" baseon="{key_shl}">&lt;&lt;</Word>
+      <Word name="key_shr" baseon="{key_shr}">&gt;&gt;</Word>
+      <Word name="key_less" baseon="{key_less}">&lt;</Word>
+      <Word name="key_great" baseon="{key_great}">&gt;</Word>
+      <Word name="key_equal" baseon="{key_equal}">==</Word>
+      <Word name="key_lessequal" baseon="{key_lessequal}">&lt;=</Word>
+      <Word name="key_greatequal" baseon="{key_greatequal}">&gt;=</Word>
+      <Word name="key_zero" baseon="key_not">!</Word>
+      <Word name="key_notequal" baseon="{key_notequal}">!=</Word>
+      <!--赋值-->
+      <Word name="key_assign" baseon="{key_assign}">=</Word>
+      <Word name="key_addto" baseon="key_assign">+=</Word>
+      <Word name="key_subto" baseon="key_assign">-=</Word>
+      <Word name="key_multo" baseon="key_assign">*=</Word>
+      <Word name="key_divto" baseon="key_assign">/=</Word>
+      <Word name="key_andto" baseon="key_assign">&amp;=</Word>
+      <Word name="key_orto" baseon="key_assign">|=</Word>
+      <Word name="key_shlto" baseon="key_assign">&lt;&lt;=</Word>
+      <Word name="key_shrto" baseon="key_assign">&gt;&gt;=</Word>
+      <!--分割-->
+      <Word name="key_quota" relation="all">,</Word>
+      <Word name="key_split" relation="all">;</Word>
+    </Keywords>
+    <Keywords name="keyword_visit_number" baseon="{keyword_visit_number}">
+      <Word name="key_visit_number" baseon="{key_visit_number}">.</Word>
+      <Word name="key_visit_pointer" baseon="{key_visit_pointer}">-&gt;</Word>
+    </Keywords>
+    <Keywords name="keyword_macro" parent="macro_line">
+      <Word name="key_include">include</Word>
+      <Word name="key_define">define</Word>
+      <Word name="key_ifdef">ifdef</Word>
+      <Word name="key_ifndef">ifndef</Word>
+      <Word name="key_endif">endif</Word>
+      <Word name="key_progma">progma</Word>
+    </Keywords>
+  </Definitions>
+  <Grammers>
+    <Word name="gram_word_type" baseon="{gram_word_type}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Word name="gram_word_var" baseon="{gram_word_var}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Word name="gram_word_func" baseon="{gram_word_func}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Word name="gram_word_define" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Group name="gram_full_type">
+      <Set name="gram_set_typeex">
+        <Word baseon="key_unsigned" canhide="true"/>
+        <Word baseon="key_signed" canhide="true"/>
+        <Word baseon="key_const" canhide="true"/>
+        <Word baseon="key_static" canhide="true"/>
+      </Set>
+      <Word baseon="{gram_word_type}"/>
+      <Cycle name="gram_cycle_ptrs" canhide="true">
+        <Keyword baseon="{key_mul}"/>
+      </Cycle>
+    </Group>
+    <Zone name="func_define_params_zone" baseon="params_zone">
+      <Cycle name="gram_cycle_define_params">
+        <Group baseon="gram_full_type"/>
+        <Word baseon="{gram_word_var}"/>
+        <Keyword baseon="key_quota" showend="false"/>
+      </Cycle>
+    </Zone>
+    <Zone name="macro_define_params_zone" baseon="params_zone">
+      <Cycle name="gram_cycle_define_params_noname">
+        <Group baseon="gram_full_type"/>
+        <Keyword baseon="key_quota" showend="false"/>
+      </Cycle>
+    </Zone>
+    <Zone name="func_prenounce_params_zone" baseon="params_zone">
+      <Cycle baseon="gram_cycle_define_params_noname"/>
+    </Zone>
+    <Group name="func_prenounce">
+      <Group baseon="gram_full_type"/>
+      <Word baseon="{gram_word_func}"/>
+      <Zone baseon="func_define_params_zone"/>
+      <Keyword baseon="key_split"/>
+    </Group>
+    <Group name="func_prenounce_novarname">
+      <Group baseon="gram_full_type"/>
+      <Word baseon="{gram_word_func}"/>
+      <Zone baseon="func_prenounce_params_zone"/>
+      <Keyword baseon="key_split"/>
+    </Group>
+    <Group name="func_realify">
+      <Group baseon="gram_full_type"/>
+      <Word baseon="{gram_word_func}"/>
+      <Zone baseon="func_define_params_zone"/>
+      <Zone name="func_block_zone" baseon="block_zone"/>
+    </Group>
+    <Group name="class_define" baseon="{class_define}">
+      <Keyword baseon="key_class"/>
+      <Group baseon="gram_full_type"/>
+      <Zone name="type_number_zone" baseon="block_zone;{class_block_zone}"/>
+    </Group>
+    <Group name="struct_define" baseon="class_define">
+      <Keyword baseon="key_struct"/>
+      <Word baseon="{gram_word_type}"/>
+      <Zone name="type_number_zone" baseon="block_zone;{class_block_zone}"/>
+    </Group>
+    <Group name="var_define">
+      <Group baseon="gram_full_type"/>
+      <Word baseon="{gram_word_var}"/>
+    </Group>
+    <Group name="macro_var_define">
+      <Keyword baseon="macro_start"/>
+      <Keyword baseon="key_define"/>
+      <Word baseon="gram_word_define"/>
+    </Group>
+    <Group name="macro_func_define">
+      <Keyword baseon="macro_start"/>
+      <Keyword baseon="key_define"/>
+      <Word baseon="gram_word_define"/>
+      <Zone baseon="macro_define_params_zone"/>
+    </Group>
+  </Grammers>
+  <Completation name="completation_class_system" baseon="{completation_class_system}">
+    
+  </Completation>
+  <Completation name="completation_base_system" baseon="{completation_base_system}">
+    <!--局部变量-->
+    <Action to="ancestor" group="var_define" variable="{gram_word_var}" vartype="{gram_word_type}"/>
+    <!--局部参数-->
+    <Action to="ancestor" group="func_realify.func_define_params_zone" variable="{gram_word_var}" vartype="{gram_word_type}"/>
+    <!--全局变量-->
+    <Action to="root" group="var_define" variable="{gram_word_var}" vartype="{gram_word_type}"/>
+    <!--全局函数-->
+    <Action to="root" group="func_prenounce" function="{gram_word_func}" returntype="{gram_word_type}" paraname="{gram_word_var}" paratype="{gram_word_type}"/>
+    <Action to="root" group="func_prenounce_novarname" function="{gram_word_func}" returntype="{gram_word_type}" paratype="{gram_word_type}"/>
+  </Completation>
+</MRACodeDocument>

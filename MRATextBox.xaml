@@ -1,0 +1,28 @@
+﻿<UserControl x:Class="Morenan.MRATextBox.MRATextBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Morenan.MRATextBox"
+             xmlns:v="clr-namespace:Morenan.MRATextBox.View"
+             xmlns:clt="clr-namespace:Morenan.MRATextBox.View.Completation"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Cut" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Copy" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Paste" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Delete" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Undo" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Redo" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.SelectAll" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Find" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Replace" CanExecute="CommandBinding_CanExecute" Executed="CommandBinding_Executed"/>
+    </UserControl.CommandBindings>
+    <Grid>
+        <v:MRATextControl x:Name="UI_Main" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"/>
+        <Canvas x:Name="CV_Cover" IsHitTestVisible="False">
+            <clt:MRACltBox x:Name="UI_CltBox" Width="400" Height="300" Visibility="Hidden" Focusable="False"/>
+        </Canvas>
+    </Grid>
+</UserControl>

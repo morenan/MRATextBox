@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{90D0FBFF-8F2D-4483-9DB7-8A47F3B18DD7}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Morenan.MRATextBox</RootNamespace>
+    <AssemblyName>Morenan.MRATextBox</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <WarningLevel>4</WarningLevel>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xaml">
+      <RequiredTargetFramework>4.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Core\Documents\DocsColor.cs" />
+    <Compile Include="Core\Documents\DocsCompletation.cs" />
+    <Compile Include="Core\Documents\DocsCore.cs" />
+    <Compile Include="Core\Documents\DocsCycle.cs" />
+    <Compile Include="Core\Documents\DocsGroup.cs" />
+    <Compile Include="Core\Documents\DocsItem.cs" />
+    <Compile Include="Core\Documents\DocsKeyWord.cs" />
+    <Compile Include="Core\Documents\DocsKeyWordCollection.cs" />
+    <Compile Include="Core\Documents\DocsLine.cs" />
+    <Compile Include="Core\Documents\DocsWord.cs" />
+    <Compile Include="Core\Documents\DocsZone.cs" />
+    <Compile Include="Core\Documents\Interfaces.cs" />
+    <Compile Include="Core\Interfaces.cs" />
+    <Compile Include="Core\TextBoxCore.cs" />
+    <Compile Include="Core\TextChar.cs" />
+    <Compile Include="Core\TextFontCore.cs" />
+    <Compile Include="Core\TextFontIndex.cs" />
+    <Compile Include="Core\TextItem.cs" />
+    <Compile Include="Core\TextKey.cs" />
+    <Compile Include="Core\TextKeyCollection.cs" />
+    <Compile Include="Core\TextKeyCore.cs" />
+    <Compile Include="Core\TextKeyInfo.cs" />
+    <Compile Include="Core\TextLine.cs" />
+    <Compile Include="Core\TextPosition.cs" />
+    <Compile Include="Core\TextWord.cs" />
+    <Compile Include="Core\TextZone.cs" />
+    <Compile Include="Core\UndoRedo\Interface.cs" />
+    <Compile Include="Core\UndoRedo\TextUndoRedoAction.cs" />
+    <Compile Include="Core\UndoRedo\TextUndoRedoCore.cs" />
+    <Compile Include="Counselor\Enums.cs" />
+    <Compile Include="Counselor\IMRATextBoxCounselor.cs" />
+    <Compile Include="Counselor\Interface.cs" />
+    <Compile Include="Counselor\MRADocMatchItem.cs" />
+    <Compile Include="Counselor\MRADocMatchResult.cs" />
+    <Compile Include="Counselor\MRATextInputContext.cs" />
+    <Compile Include="Counselor\MRATextInputItem.cs" />
+    <Compile Include="Counselor\MRAZoneContext.cs" />
+    <Compile Include="Counselor\MRAZoneResult.cs" />
+    <Compile Include="MRATextBox.xaml.cs">
+      <DependentUpon>MRATextBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <Compile Include="ResourceManager.cs" />
+    <Compile Include="View\Completation\MRACltBox.cs" />
+    <Compile Include="View\Completation\MRACltItemInfo.cs" />
+    <Compile Include="View\Completation\MRACltItemView.cs" />
+    <Compile Include="View\Completation\MRACltVirtualizeStackPanel.cs" />
+    <Compile Include="View\DrawingVisual\MRANumberBarDrawingVisual.cs" />
+    <Compile Include="View\DrawingVisual\MRARawTextDrawingVisual.cs" />
+    <Compile Include="View\DrawingVisual\MRASelectionDrawingVisual.cs" />
+    <Compile Include="View\DrawingVisual\MRAStructBarDrawingVisual.cs" />
+    <Compile Include="View\MRATextControl.cs" />
+    <Compile Include="View\DrawingVisual\MRATextItemDrawingVisual.cs" />
+    <Compile Include="View\MRATextItemInfo.cs" />
+    <Compile Include="View\MRATextItemView.cs" />
+    <Compile Include="View\MRATextParagraphProperties.cs" />
+    <Compile Include="View\MRATextProperties.cs" />
+    <Compile Include="View\MRATextSource.cs" />
+    <Compile Include="View\MRATextVirtualizeStackPanel.cs" />
+    <Compile Include="View\MRAZoneSkipInfo.cs" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <EmbeddedResource Include="Resources\MRA_Config.xchd" />
+    <EmbeddedResource Include="Resources\MRA_CPP.xchd" />
+    <None Include="Resources\YGOLua.xchd">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="MRATextBox.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Resources\Theme_Default.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Icon\Black_Class.png" />
+    <Resource Include="Resources\Icon\White_Class.png" />
+    <Resource Include="Resources\Icon\White_Function.png" />
+    <Resource Include="Resources\Icon\White_Keyword.png" />
+    <Resource Include="Resources\Icon\White_Variable.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

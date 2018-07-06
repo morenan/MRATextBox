@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<MRAConfig>
+  <ColorCollection>
+    <Color name="foreground_structbar_normal" value="#FF808080"/>
+    <Color name="background_structbar_normal_mouseover" value="#00000000"/>
+    <Color name="foreground_structbar_normal_mouseover" value="#FF000000"/>
+    <Color name="background_structbar_inside" value="#00000000"/>
+    <Color name="foreground_structbar_inside" value="#FF404040"/>
+    <Color name="background_structbar_inside_mouseover" value="#00000000"/>
+    <Color name="foreground_structbar_inside_mouseover" value="#FF000000"/>
+    <Color name="foreground_skipzone" value="#FFA0A0A0"/>
+    <Color name="foreground_linenumber" value="#FFA0A060"/>
+    <Color name="background_cltbox" value="#FFFFFFFF"/>
+    <Color name="background_cltbox_selected" value="#FF3D2293"/>
+    <Color name="foreground_cltbox" value="#FF000000"/>
+    <Color name="foreground_cltbox_selected" value="#FFFFFFFF"/>
+    <Color name="background_rawtext_selected" value="#FF40A0D0"/>
+    <Color name="foreground_rawtext_caret" value="#FF000000"/>
+  </ColorCollection>
+  <ValueCollection>
+    <Value name="margin_numberbar" value="0.0"/>
+    <Value name="margin_structbar" value="30.0"/>
+    <Value name="margin_left" value="50.0"/>
+    <Value name="rawtext_caret_thickness" value="1.0"/>
+  </ValueCollection>
+</MRAConfig>

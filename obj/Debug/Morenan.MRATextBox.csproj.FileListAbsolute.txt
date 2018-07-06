@@ -1,0 +1,15 @@
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.csprojResolveAssemblyReference.cache
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\MRATextBox.g.cs
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\GeneratedInternalTypeHelper.g.cs
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox_MarkupCompile.cache
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox_MarkupCompile.lref
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\bin\Debug\Morenan.MRATextBox.dll
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\bin\Debug\Morenan.MRATextBox.pdb
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\MRATextBox.baml
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Resources\Theme_Default.baml
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.g.resources
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.Properties.Resources.resources
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.csproj.GenerateResource.cache
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.csproj.CoreCompileInputs.cache
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.dll
+C:\game\ygopro-master\YGOFairy\Morenan.MRATextBox\obj\Debug\Morenan.MRATextBox.pdb

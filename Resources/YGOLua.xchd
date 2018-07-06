@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+<MRACodeDocument name="cpp" extensions=".c;.h;.cc;.cpp;.hpp">
+  <Resources>
+    <Color name="black" color="#FF000000"/>
+    <Color name="white" color="#FFFFFFFF"/>
+    <Color name="comment_color" color="#FF408062"/>
+    <Color name="macro_color" color="#FF28A164"/>
+    <Color name="string_color" color="#FF938255"/>
+    <Color name="keyword_color" color="#FF49A3E2" weight="Bold"/>
+    <Color name="keyword_condition_color" baseon="keyword_color"/>
+    <Color name="keyword_branch_color" baseon="keyword_color"/>
+    <Color name="keyword_basetype_color" baseon="keyword_color"/>
+    <Color name="keyword_systemused_color" baseon="keyword_color"/>
+    <Color name="keyword_const_color" baseon="keyword_color"/>
+    <Color name="keyword_operator_color" baseon="keyword_color"/>
+    <Color name="keyword_visit_color" baseon="keyword_color"/>
+  </Resources>
+  <Definitions>
+    <Zone name="function_zone" baseon="{block_zone}">
+      <Left><Keyword name="key_function" text="function" relation="leftkey;rightkey"/></Left>
+      <Right><Keyword name="key_end" text="end" relation="leftkey;rightkey"/></Right>
+    </Zone>
+    <Zone name="params_zone" baseon="{params_zone}">
+      <Left><Keyword name="params_start" text="(" relation="all"/></Left>
+      <Right><Keyword name="params_end" text=")" relation="all"/></Right>
+    </Zone>
+    <Zone name="array_zone" baseon="{array_zone}">
+      <Left><Keyword name="array_start" text="[" relation="all"/></Left>
+      <Right><Keyword name="array_end" text="]" relation="all"/></Right>
+    </Zone>
+    <Zone name="set_zone" baseon="{array_zone}">
+      <Left><Keyword name="set_start" text="{" relation="all"/></Left>
+      <Right><Keyword name="set_end" text="}" relation="all"/></Right>
+    </Zone>
+    <Zone name="then_zone">
+      <Left><Keyword name="key_then" text="then" relation="leftkey;rightkey"/></Left>
+      <Right><Keyword baseon="key_end"/></Right>
+    </Zone>
+    <Zone name="do_zone">
+      <Left><Keyword name="key_do" text="do" relation="leftkey;rightkey"/></Left>
+      <Right><Keyword baseon="key_end"/></Right>
+    </Zone>
+    <Zone name="repeat_zone">
+      <Left><Keyword name="key_repeat" text="repeat" relation="leftkey;rightkey"/></Left>
+      <Right><Keyword name="key_until" text="until" relation="leftkey;rightkey"/></Right>
+    </Zone>
+    <Zone name="char_zone" attribute="comment" fill="string_color" baseon="{char_zone}">
+      <Left><Keyword name="char_start" relation="all"/>&apos;</Left>
+      <Right><Keyword name="char_end" relation="all"/>&apos;</Right>
+    </Zone>
+    <Zone name="string_zone" attribute="comment" fill="string_color" baseon="{string_zone}">
+      <Left><Keyword name="string_start" relation="all"/>&quot;</Left>
+      <Right><Keyword name="string_end" relation="all"/>&quot;</Right>
+    </Zone>
+    <Zone name="comment_zone" attribute="comment" fill="comment_color" baseon="{comment_zone}">
+      <Left><Keyword name="comment_start" text="/*" relation="all"/></Left>
+      <Right><Keyword name="comment_end" text="*/" relation="all"/></Right>
+    </Zone>
+    <Line name="comment_line" attribute="comment" fill="comment_color">
+      <Left><Keyword name="comment_line_start" text="--" relation="all"/></Left>
+    </Line>
+    <!--条件类-->
+    <Keywords name="keyword_condition" color="keyword_condition_color">
+      <Word name="key_if" baseon="{key_if}">if</Word>
+      <Word name="ker_else">else</Word>
+      <Word name="key_while" baseon="{key_while}">while</Word>
+      <Word name="key_for">for</Word>
+      <Word name="key_in">in</Word>
+      <Word name="key_break">break</Word>
+    </Keywords>
+    <!--基本类型类-->
+    <Keywords name="keyword_basetype" color="keyword_basetype_color">
+      <Word name="key_boolean">boolean</Word>
+      <Word name="key_number" baseon="{key_double}">number</Word>
+      <Word name="key_string">string</Word>
+      <Word name="key_userdata">userdata</Word>
+      <Word name="key_thread">thread</Word>
+      <Word name="key_table">table</Word>
+    </Keywords>
+    <!--系统使用类-->
+    <Keywords name="keyword_systemused" color="keyword_systemused_color">
+      <Word name="key_type">type</Word>
+      <Word name="key_local">local</Word>
+      <Word name="key_print">print</Word>
+    </Keywords>
+    <!--系统常量类-->
+    <Keywords name="keyword_const" color="keyword_const_color">
+      <Word name="key_nil">nil</Word>
+    </Keywords>
+    <!--运算符类-->
+    <Keywords name="keyword_operator" color="keyword_operator_color">
+      <!--运算-->
+      <Word name="key_add" baseon="{key_add}">+</Word>
+      <Word name="key_sub" baseon="{key_sub}">-</Word>
+      <Word name="key_mul" baseon="{key_mul}">*</Word>
+      <Word name="key_div" baseon="{key_div}">/</Word>
+      <Word name="key_mod">%</Word>
+      <Word name="key_pow">^</Word>
+      <Word name="key_stringconcat">..</Word>
+      <Word name="key_stringlength">#</Word>
+      <Word name="key_and" baseon="{key_and}">and</Word>
+      <Word name="key_or" baseon="{key_or}">or</Word>
+      <Word name="key_not" baseon="{key_not}">not</Word>
+      <Word name="key_shl" baseon="{key_shl}">shl</Word>
+      <Word name="key_shr" baseon="{key_shr}">shr</Word>
+      <Word name="key_less" baseon="{key_less}">&lt;</Word>
+      <Word name="key_great" baseon="{key_great}">&gt;</Word>
+      <Word name="key_equal" baseon="{key_equal}">==</Word>
+      <Word name="key_lessequal" baseon="{key_lessequal}">&lt;=</Word>
+      <Word name="key_greatequal" baseon="{key_greatequal}">&gt;=</Word>
+      <Word name="key_notequal" baseon="{key_notequal}">~=</Word>
+      <!--赋值-->
+      <Word name="key_assign" baseon="{key_assign}">=</Word>
+    </Keywords>
+    <Keywords name="keyword_visit" color="keyword_visit_color" >
+      <Word name="key_visit_global">.</Word>
+      <Word name="key_visit_local">:</Word>
+    </Keywords>
+  </Definitions>
+  <Grammers>
+    <Word name="gram_word_type" baseon="{gram_word_type}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Word name="gram_word_var" baseon="{gram_word_var}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Word name="gram_word_func" baseon="{gram_word_func}" regex="[a-zA-Z_][0-9a-zA-Z_]?"/>
+    <Group name="group_visit_global">
+      <Word baseon="{gram_word_type}"/>
+      <Keyword baseon="key_visit_global"/>
+    </Group>
+    <Group name="group_visit_local">
+      <Word baseon="{gram_word_type}"/>
+      <Keyword baseon="key_visit_local"/>
+    </Group>
+  </Grammers>
+</MRACodeDocument>
