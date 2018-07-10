@@ -14,7 +14,7 @@
     <Color name="background_cltbox_selected" value="#FF3D2293"/>
     <Color name="foreground_cltbox" value="#FF000000"/>
     <Color name="foreground_cltbox_selected" value="#FFFFFFFF"/>
-    <Color name="background_rawtext_selected" value="#FF40A0D0"/>
+    <Color name="background_rawtext_selected" value="#FF80C0E8"/>
     <Color name="foreground_rawtext_caret" value="#FF000000"/>
   </ColorCollection>
   <ValueCollection>

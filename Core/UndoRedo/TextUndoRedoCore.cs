@@ -11,8 +11,8 @@ namespace Morenan.MRATextBox.Core.UndoRedo
         public TextUndoRedoCore(ITextBoxCore _parent)
         {
             this.parent = _parent;
-            this.undos = new List<ITextUndoRedoAction>();
-            this.redos = new List<ITextUndoRedoAction>();
+            this.undos = new List<ITextAction>();
+            this.redos = new List<ITextAction>();
         }
 
         #region Number
@@ -20,11 +20,11 @@ namespace Morenan.MRATextBox.Core.UndoRedo
         private ITextBoxCore parent;
         public ITextBoxCore Parent { get { return this.parent; } }
 
-        private List<ITextUndoRedoAction> undos;
-        public IList<ITextUndoRedoAction> Undos { get { return this.undos; } }
+        private List<ITextAction> undos;
+        public IList<ITextAction> Undos { get { return this.undos; } }
 
-        private List<ITextUndoRedoAction> redos;
-        public IList<ITextUndoRedoAction> Redos { get { return this.redos; } }
+        private List<ITextAction> redos;
+        public IList<ITextAction> Redos { get { return this.redos; } }
 
         #endregion
 
@@ -36,10 +36,12 @@ namespace Morenan.MRATextBox.Core.UndoRedo
             redos.Clear();
         }
 
-        public void Add(ITextUndoRedoAction action)
+        public void Add(ITextAction action)
         {
-            ITextUndoRedoAction lastundo = undos.LastOrDefault();
-            ITextUndoRedoAction concat = lastundo?.Concat(action);
+            ITextAction lastundo = undos.LastOrDefault();
+            ITextAction concat = null;
+            if (lastundo is ITextUndoRedoAction && action is ITextUndoRedoAction)
+                concat = ((ITextUndoRedoAction)lastundo).Concat((ITextUndoRedoAction)action);
             if (concat != null)
             {
                 undos.RemoveAt(undos.Count() - 1);
@@ -51,16 +53,16 @@ namespace Morenan.MRATextBox.Core.UndoRedo
             }
         }
         
-        public ITextUndoRedoAction Undo()
+        public ITextAction Undo()
         {
-            ITextUndoRedoAction lastundo = undos.LastOrDefault();
+            ITextAction lastundo = undos.LastOrDefault();
             if (lastundo != null) redos.Add(lastundo);
             return lastundo;
         }
 
-        public ITextUndoRedoAction Redo()
+        public ITextAction Redo()
         {
-            ITextUndoRedoAction lastredo = redos.LastOrDefault();
+            ITextAction lastredo = redos.LastOrDefault();
             if (lastredo != null) undos.Add(lastredo);
             return lastredo;
         }

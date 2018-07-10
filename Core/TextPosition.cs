@@ -28,7 +28,7 @@ namespace Morenan.MRATextBox.Core
 
         private int index;
         public int Index { get { return this.index; } set { this.index = value; } }
-        
+
         private int line;
         public int Line { get { return this.line; } set { this.line = value; } }
 
@@ -38,7 +38,7 @@ namespace Morenan.MRATextBox.Core
         public string LeftPart { get { return item.ToString().Substring(0, itemindex); } }
 
         public string RightPart { get { return item.ToString().Substring(itemindex); } }
-        
+
         #endregion
 
         #region Method
@@ -80,6 +80,40 @@ namespace Morenan.MRATextBox.Core
                 column -= text.Length;
         }
 
+        public static int RefNextLine(string text, ref int lineoffset, ref int line, ref int column)
+        {
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                {
+                    line++; column = 1;
+                    if (--lineoffset == 0) return i;
+                }
+                else
+                {
+                    column++;
+                }
+            }
+            return -1;
+        }
+
+        public static int RefPrevLine(string text, ref int lineoffset, ref int line, ref int column)
+        {
+            for (int i = text.Length - 1; i >= 0; i--)
+            {
+                if (text[i] == '\n')
+                {
+                    line--; column = -1;
+                    if (--lineoffset == 0) return i;
+                }
+                else
+                {
+                    column--;
+                }
+            }
+            return -1;
+        }
+
         public static ITextPosition GetNextLine(ITextZone zone, int start, int line)
         {
             for (int i = start; i < zone.Items.Count; i++)
@@ -115,6 +149,60 @@ namespace Morenan.MRATextBox.Core
                     ITextZone _zone = (ITextZone)(zone.Items[i]);
                     ITextPosition result = GetPrevLine(_zone, _zone.Items.Count - 1, line);
                     if (result != null) return result;
+                }
+            }
+            return null;
+        }
+
+        public static ITextPosition MoveNextLine(ITextZone zone, int start, ref int lineoffset, ref int line, ref int column)
+        {
+            for (int i = start; i < zone.Items.Count; i++)
+            {
+                if (zone.Items[i] is ITextTrim)
+                {
+                    ITextTrim trim = (ITextTrim)(zone.Items[i]);
+                    int nextindex = RefNextLine(trim.ToString(), ref lineoffset, ref line, ref column);
+                    if (nextindex >= 0) return new TextPosition() { Item = trim, ItemIndex = nextindex + 1, Line = line, Column = column };
+                }
+                if (zone.Items[i] is ITextZone)
+                {
+                    ITextZone _zone = (ITextZone)(zone.Items[i]);
+                    if (_zone.LineCount <= lineoffset)
+                    {
+                        lineoffset -= _zone.LineCount - 1;
+                        line += _zone.LineCount - 1; column = -100000;
+                    }
+                    else
+                    {
+                        return MoveNextLine(_zone, 0, ref lineoffset, ref line, ref column);
+                    }
+                }
+            }
+            return null;
+        }
+
+        public static ITextPosition MovePrevLine(ITextZone zone, int start, ref int lineoffset, ref int line, ref int column)
+        {
+            for (int i = start; i >= 0; i--)
+            {
+                if (zone.Items[i] is ITextTrim)
+                {
+                    ITextTrim trim = (ITextTrim)(zone.Items[i]);
+                    int previndex = RefPrevLine(trim.ToString(), ref lineoffset, ref line, ref column);
+                    if (previndex >= 0) return new TextPosition() { Item = trim, ItemIndex = previndex, Line = line, Column = column };
+                }
+                if (zone.Items[i] is ITextZone)
+                {
+                    ITextZone _zone = (ITextZone)(zone.Items[i]);
+                    if (_zone.LineCount <= lineoffset)
+                    {
+                        lineoffset -= _zone.LineCount - 1;
+                        line -= _zone.LineCount - 1; column = -100000;
+                    }
+                    else
+                    {
+                        return MovePrevLine(_zone, _zone.Items.Count - 1, ref lineoffset, ref line, ref column);
+                    }
                 }
             }
             return null;
@@ -516,6 +604,45 @@ namespace Morenan.MRATextBox.Core
                     ITextZone zone = previtem.Parent;
                     ITextPosition result = GetPrevOffset(zone, previtem.ID - 1, ref offset, ref prevline, ref prevcolumn);
                     if (result != null) return result;
+                    previtem = zone;
+                }
+            }
+            return null;
+        }
+
+        public ITextPosition MoveLine(int lineoffset)
+        {
+            if (lineoffset == 0) return Clone();
+            if (lineoffset > 0)
+            {
+                ITextItem nextitem = item;
+                int nextline = line;
+                int nextcolumn = column;
+                string rightpart = RightPart;
+                int nextindex = RefNextLine(rightpart, ref lineoffset, ref nextline, ref nextcolumn);
+                if (nextindex >= 0) return new TextPosition() { Item = nextitem, ItemIndex = itemindex + nextindex + 1, Line = nextline, Column = nextcolumn };
+                while (nextitem?.Parent != null)
+                {
+                    ITextZone zone = nextitem.Parent;
+                    ITextPosition result = MoveNextLine(zone, nextitem.ID + 1, ref lineoffset, ref nextline, ref nextcolumn);
+                    if (result != null) return result;
+                    nextitem = zone;
+                }
+            }
+            else
+            {
+                lineoffset = -lineoffset;
+                ITextItem previtem = item;
+                int prevline = line;
+                int prevcolumn = column;
+                string leftpart = LeftPart;
+                int previndex = RefPrevLine(leftpart, ref lineoffset, ref prevline, ref prevcolumn);
+                if (previndex >= 0) return new TextPosition() { Item = previtem, ItemIndex = previndex, Line = prevline, Column = prevcolumn };
+                while (previtem?.Parent != null)
+                {
+                    ITextZone zone = previtem.Parent;
+                    ITextPosition result = MovePrevLine(zone, previtem.ID - 1, ref lineoffset, ref prevline, ref prevcolumn);
+                    if (result == null) return result;
                     previtem = zone;
                 }
             }

@@ -39,10 +39,10 @@ namespace Morenan.MRATextBox.Core
         public IList<ITextItem> Items { get { return this.items; } }
 
         private int linecount;
-        public int LineCount { get { return this.linecount; } }
+        public int LineCount { get { return this.linecount; } set { this.linecount = value; } }
 
         private int skipcount;
-        public int SkipCount { get { return this.skipcount; } }
+        public int SkipCount { get { return this.skipcount; } set { this.skipcount = value; } }
 
         private bool isskip;
         public bool IsSkip { get { return this.isskip; } set { skipcount -= isskip ? 1 : 0; this.isskip = value; skipcount += isskip ? 1 : 0; } }
@@ -57,8 +57,31 @@ namespace Morenan.MRATextBox.Core
 
         #region Method
 
+        protected void AncestorRelease()
+        {
+            ITextZone _parent = Parent;
+            while (_parent != null)
+            {
+                _parent.LineCount -= linecount - 1;
+                _parent.SkipCount -= skipcount;
+                _parent = _parent.Parent;
+            }
+        }
+
+        protected void AncestorCapture()
+        {
+            ITextZone _parent = Parent;
+            while (_parent != null)
+            {
+                _parent.LineCount += linecount - 1;
+                _parent.SkipCount += skipcount;
+                _parent = _parent.Parent;
+            }
+        }
+
         public void Add(ITextItem item)
         {
+            AncestorRelease();
             item.Parent = this;
             item.ID = items.Count();
             item.Level = Level + 1;
@@ -74,10 +97,12 @@ namespace Morenan.MRATextBox.Core
                 linecount += zone.LineCount - 1;
                 skipcount += zone.SkipCount;
             }
+            AncestorCapture();
         }
 
         public void Insert(int id, ITextItem item)
         {
+            AncestorRelease();
             item.Parent = this;
             item.ID = id;
             item.Level = Level + 1;
@@ -95,10 +120,12 @@ namespace Morenan.MRATextBox.Core
                 linecount += zone.LineCount - 1;
                 skipcount += zone.SkipCount;
             }
+            AncestorCapture();
         }
 
         public void Remove(ITextItem item)
         {
+            AncestorRelease();
             for (int i = item.ID + 1; i < items.Count(); i++)
                 items[i].ID--;
             items.Remove(item);
@@ -116,10 +143,12 @@ namespace Morenan.MRATextBox.Core
                 linecount -= zone.LineCount - 1;
                 skipcount -= zone.SkipCount;
             }
+            AncestorCapture();
         }
         
         public void Replace(int start, int count, IEnumerable<ITextItem> _additems)
         {
+            AncestorRelease();
             items.RemoveRange(start, count);
             items.InsertRange(start, _additems);
             this.linecount = 1;
@@ -141,6 +170,7 @@ namespace Morenan.MRATextBox.Core
                     skipcount += zone.SkipCount;
                 }
             }
+            AncestorCapture();
         }
 
         public IEnumerable<ITextItem> GetRange(int start, int count)

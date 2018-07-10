@@ -80,6 +80,9 @@
     <Compile Include="Core\TextWord.cs" />
     <Compile Include="Core\TextZone.cs" />
     <Compile Include="Core\UndoRedo\Interface.cs" />
+    <Compile Include="Core\UndoRedo\Text1to3LineAction.cs" />
+    <Compile Include="Core\UndoRedo\TextAction.cs" />
+    <Compile Include="Core\UndoRedo\TextIndentAction.cs" />
     <Compile Include="Core\UndoRedo\TextUndoRedoAction.cs" />
     <Compile Include="Core\UndoRedo\TextUndoRedoCore.cs" />
     <Compile Include="Counselor\Enums.cs" />

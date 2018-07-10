@@ -150,6 +150,113 @@ namespace Morenan.MRATextBox.View
             this.selectedstart = Core.SelectedStart;
         }
 
+        /// <summary> 选择范围内的行项无效化，重新生成一遍 </summary>
+        /// <param name="start">行项开始</param>
+        /// <param name="count">范围长度</param>
+        protected void _InvalidateItems(int start, int count)
+        {
+            bool hasspitem = false;
+            for (int i = start; i < start + count; i++)
+            {
+                hasspitem |= items[i] is IMRAZoneSkipInfo;
+                if (hasspitem) break;
+            }
+            if (hasspitem)
+            {
+                List<IMRATextItemInfo> _items = items.GetRange(0, start);
+                ITextPosition current = _items.LastOrDefault()?.End?.NextLine() ?? core.GetFirstPosition();
+                for (int i = start; i < start + count; i++)
+                {
+                    if (items[i] is IMRAZoneSkipInfo)
+                    {
+                        IMRAZoneSkipInfo item = (IMRAZoneSkipInfo)items[i];
+                        for (int j = item.LineStart; j <= item.LineEnd; j++)
+                        {
+                            IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), j);
+                            newitem.Start = current;
+                            current = current?.NextLine();
+                            newitem.End = current?.Prev() ?? core.GetLastPosition();
+                            _items.Add(newitem);
+                        }
+                    }
+                    else if (items[i] is IMRATextItemInfo)
+                    {
+                        IMRATextItemInfo item = (IMRATextItemInfo)items[i];
+                        IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), item.Line);
+                        newitem.Start = current;
+                        current = current?.NextLine();
+                        newitem.End = current?.Prev() ?? core.GetLastPosition();
+                        _items.Add(newitem);
+                    }
+                }
+                items = _items;
+                ItemsSource = items;
+            }
+            else
+            {
+                ITextPosition current = start > 0 ? (items[start - 1].End?.NextLine() ?? core.GetFirstPosition()) : core.GetFirstPosition();
+                for (int i = start; i < start + count; i++)
+                {
+                    items[i].Start = current;
+                    current = current?.NextLine();
+                    items[i].End = current?.Prev() ?? core.GetLastPosition();
+                    items[i]?.View?.InvalidateVisual();
+                }
+            }
+        }
+
+        /// <summary> 针对行的实际数量的更改，第几行到第几行无效化，转移到新的行范围 </summary>
+        /// <param name="oldstart">旧行的开始</param>
+        /// <param name="oldend">旧行的结束</param>
+        /// <param name="newstart">新行的开始</param>
+        /// <param name="newend">新行的结束</param>
+        protected void _InvalidateLines(int oldstart, int oldend, int newstart, int newend)
+        {
+            int oldcount = oldend - oldstart + 1;
+            int newcount = newend - newstart + 1;
+            IMRATextItemInfo startitem = GetItem(oldstart);
+            IMRATextItemInfo enditem = GetItem(oldend);
+            List<IMRATextItemInfo> _items = items.GetRange(0, startitem.ID);
+            ITextPosition current = _items.LastOrDefault()?.End?.NextLine() ?? core.GetFirstPosition();
+            for (int i = newstart; i <= newend; i++)
+            {
+                IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), i);
+                newitem.Start = current;
+                current = current?.NextLine();
+                newitem.End = current?.Prev() ?? core.GetLastPosition();
+                _items.Add(newitem);
+            }
+            for (int i = enditem.ID + 1; i < items.Count(); i++)
+            {
+                if (items[i] is IMRAZoneSkipInfo)
+                {
+                    IMRAZoneSkipInfo olditem = (IMRAZoneSkipInfo)items[i];
+                    IMRAZoneSkipInfo newitem = new MRAZoneSkipInfo(core, _items.Count(),
+                        olditem.LineStart + newcount - oldcount,
+                        olditem.LineEnd + newcount - oldcount,
+                        olditem.SkipZone);
+                    _items.Add(newitem);
+                }
+                else if (items[i] is IMRATextItemInfo)
+                {
+                    IMRATextItemInfo olditem = items[i];
+                    IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(),
+                        olditem.Line + newcount - oldcount);
+                    _items.Add(newitem);
+                }
+                {
+                    IMRATextItemInfo olditem = items[i];
+                    IMRATextItemInfo newitem = _items.LastOrDefault();
+                    newitem.Start = olditem.Start.Clone();
+                    newitem.End = olditem.End.Clone();
+                    newitem.Start.Line += newcount - oldcount;
+                    newitem.End.Line += newcount - oldcount;
+                }
+            }
+            items = _items;
+            ItemsSource = items;
+        }
+
         /// <summary> 因为鼠标事件导致当前光标无效化，重新生成一遍 </summary>
         /// <param name="e"></param>
         protected void InvalidateCursor(MouseEventArgs e)
@@ -255,8 +362,19 @@ namespace Morenan.MRATextBox.View
         /// <param name="text"></param>
         public void SelectedReplace(string text)
         {
+            core.Replace(core.SelectedStart, core.SelectedEnd, text);
+            // 行数没有更改的情况下
+            if (core.OriginLineStart == core.BuildLineStart && core.OriginLineEnd == core.BuildLineEnd)
+            {
+                IMRATextItemInfo startitem = GetItem(core.OriginLineStart);
+                IMRATextItemInfo enditem = GetItem(core.OriginLineEnd);
+                _InvalidateItems(startitem.ID, enditem.ID - startitem.ID + 1);
+            }
+            else
+                _InvalidateLines(core.OriginLineStart, core.OriginLineEnd, core.BuildLineStart, core.BuildLineEnd);
             // 更改区域的上一行下一行的位置，不会受到影响的外围可以维持
             //ITextPosition start = core.SelectedStart?.PrevLine()?.PrevLine()?.Next() ?? core.GetFirstPosition();
+            /*
             ITextPosition start = core.SelectedStart?.PrevLine();
             start = start?.PrevLine();
             start = start?.Next();
@@ -323,6 +441,7 @@ namespace Morenan.MRATextBox.View
             {
                 InvalidateItems();
             }
+            */
             this.selectedstart = core.SelectedStart;
         }
 

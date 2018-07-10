@@ -24,6 +24,10 @@ namespace Morenan.MRATextBox.Core
         ITextPosition GetLastPosition();
         ITextPosition GetLinePosition(int line);
         ITextPosition GetPosition(int line, int column);
+        ITextPosition GetFirstPosition(ITextItem item);
+        ITextPosition GetLastPosition(ITextItem item);
+        int GetFirstLine(ITextItem item);
+        int GetLastLine(ITextItem item);
         string GetSelectedText();
         string GetText(ITextPosition start, ITextPosition end);
         MRATextBox View { get; }
@@ -101,6 +105,7 @@ namespace Morenan.MRATextBox.Core
         ITextPosition NextItemNonTrim();
         ITextPosition PrevItemNonTrim();
         ITextPosition Move(int offset);
+        ITextPosition MoveLine(int lineoffset);
         ITextPosition Up();
         ITextPosition Down();
         int GetPrevLength();
@@ -124,8 +129,8 @@ namespace Morenan.MRATextBox.Core
     internal interface ITextZone : ITextItem
     {
         IList<ITextItem> Items { get; }
-        int LineCount { get; }
-        int SkipCount { get; }
+        int LineCount { get; set; }
+        int SkipCount { get; set; }
         bool IsSkip { get; set; }
         void Add(ITextItem item);
         void Remove(ITextItem item);
@@ -135,7 +140,8 @@ namespace Morenan.MRATextBox.Core
 
     internal interface ITextLine : ITextZone
     {
-        
+        bool HasEnterEnd();
+        bool HasEnterContinue();
     }
     
     internal interface ITextWord : ITextItem

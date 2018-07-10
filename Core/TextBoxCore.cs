@@ -3,15 +3,16 @@ using System.Xml.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Runtime.InteropServices;
+using System.Reflection;
+using System.IO;
 using Morenan.MRATextBox.Core.Documents;
 using Morenan.MRATextBox.Core.UndoRedo;
 using Morenan.MRATextBox.Counselor;
-using System.Reflection;
-using System.IO;
 
 namespace Morenan.MRATextBox.Core
 {
@@ -20,6 +21,12 @@ namespace Morenan.MRATextBox.Core
     /// <summary> MRATextBox的内核实现 </summary>
     internal class TextBoxCore : ITextBoxCore, ITextZone
     {
+        #region Resource
+
+        private static readonly Regex Regex_NonTrim = new Regex(@"[^\s]\s+$", RegexOptions.Compiled);
+
+        #endregion
+
         /// <summary> 构造函数 </summary>
         public TextBoxCore()
         {
@@ -40,6 +47,7 @@ namespace Morenan.MRATextBox.Core
             this.defaultfontstretch = FontStretches.Normal;
             this.defaultfontstyle = FontStyles.Normal;
             this.defaultfontweight = FontWeights.Normal;
+            this.tabbyteperiod = 4;
             // 加载默认文档
             Assembly assembly = Assembly.GetExecutingAssembly();
             Stream stream = assembly.GetManifestResourceStream("Morenan.MRATextBox.Resources.MRA_CPP.xchd");
@@ -127,12 +135,12 @@ namespace Morenan.MRATextBox.Core
         /// <summary> 行的总数 </summary>
         private int linecount;
         /// <summary> 行的总数 </summary>
-        public int LineCount { get { return this.linecount; } }
+        public int LineCount { get { return this.linecount; } set { this.linecount = value; } }
 
         /// <summary> 省略区域的总数 </summary>
         private int skipcount;
         /// <summary> 省略区域的总数 </summary>
-        public int SkipCount { get { return this.skipcount; } }
+        public int SkipCount { get { return this.skipcount; } set { this.skipcount = value; } }
         
         /// <summary> 是否省略，本是ITextZone的特性，这里不能省略 </summary>
         public bool IsSkip { get { return false; } set { } }
@@ -331,7 +339,10 @@ namespace Morenan.MRATextBox.Core
             string removedtext = GetText(start, end);
             string replacedtext = text;
             // 进行处理
-            _Replace(start, end, text);
+            bool _oldintentenable = intentenable;
+            intentenable = !text.Equals(" ");
+            replacedtext = _Replace(start, end, text);
+            intentenable = _oldintentenable;
             // 处理过后新的选择范围
             int newlinestart = selectedstart.Line;
             int newcolumnstart = selectedstart.Column;
@@ -368,7 +379,10 @@ namespace Morenan.MRATextBox.Core
             int oldcolumnend = end.Column;
             string backspacetext = GetText(start, end);
             // 进行处理
+            bool _oldintentenable = intentenable;
+            intentenable = false;
             _Replace(start, end, String.Empty);
+            intentenable = _oldintentenable;
             // 处理过后新的选择范围
             int newlinestart = selectedstart.Line;
             int newcolumnstart = selectedstart.Column;
@@ -385,20 +399,48 @@ namespace Morenan.MRATextBox.Core
             return backspacetext;
         }
 
+        /// <summary> 智能退格 </summary>
+        /// <returns>退格掉的文本</returns>
+        public string SmartBackspace()
+        {
+            ITextPosition start = selectedstart;
+            ITextPosition end = selectedend;
+            int poscmp = start.CompareTo(end);
+            if (poscmp != 0) return Backspace();
+            int count = 0;
+            while (start.Item is ITextTrim)
+            {
+                int enterid = start.LeftPart.LastIndexOf('\n');
+                if (enterid >= 0)
+                {
+                    count += start.LeftPart.Length - enterid - 1;
+                    break;
+                }
+                else
+                {
+                    count += start.LeftPart.Length;
+                    start = start.PrevItem()?.PrevSeek();
+                }
+            }
+            count = Math.Max(count, 1);
+            return Backspace(count);
+        }
+        
         /// <summary> 获取顾问系统的输入上下文 </summary>
         /// <returns></returns>
         public IMRATextInputContext GetInputContext()
         {
             return new MRATextInputContext(selectedstart.Item.Parent, selectedstart.Item.ID, selectedstart.ItemIndex);
         }
-        
+
         #region Replace
 
         /// <summary> 将范围内的文本部分替换，边界由两个坐标start和end决定 </summary>
         /// <param name="start">边界起始</param>
         /// <param name="end">边界终止</param>
         /// <param name="text">替换文本</param>
-        protected void _Replace(ITextPosition start, ITextPosition end, string text)
+        /// <returns>实际替换成的文本</returns>
+        protected string _Replace(ITextPosition start, ITextPosition end, string text)
         {
             start = start.PrevSeek();
             end = end.NextSeek();
@@ -421,9 +463,9 @@ namespace Morenan.MRATextBox.Core
             }
             // 进行处理
             if (starti != null && endi != null && starti == endi && starti is ITextZone)
-                _Replace((ITextZone)(starti), start, end, text);
+                return _Replace((ITextZone)(starti), start, end, text);
             else
-                _Replace(this, start, end, text);
+                return _Replace(this, start, end, text);
         }
 
         /// <summary> 将指定域项(ITextZone)中的部分替换，由两个边界坐标来决定要替换的部分 </summary>
@@ -431,7 +473,8 @@ namespace Morenan.MRATextBox.Core
         /// <param name="start">起始坐标</param>
         /// <param name="end">终点坐标</param>
         /// <param name="text">要替换的新的文本</param>
-        protected void _Replace(ITextZone zone, ITextPosition start, ITextPosition end, string text)
+        /// <returns>实际替换成的文本</returns>
+        protected string _Replace(ITextZone zone, ITextPosition start, ITextPosition end, string text)
         {
             start = start.PrevSeek();
             end = end.NextSeek();
@@ -446,22 +489,25 @@ namespace Morenan.MRATextBox.Core
             // 中间的未结构化部分，之前两个坐标拆散的部分合并在一起以纯文本表示。
             string startleftpart = start.LeftPart;
             string endrightpart = end.RightPart;
+            int textendline = caretline + endrightpart.Count(c => c == '\n');
             ITextPosition leftpos = startleftpart.Length > 0 ? start.PrevItem() : start.Clone();
             text = String.Format("{0}{1}{2}", startleftpart, text, endrightpart);
             // 左边的结构化部分，扫描得到
             _Replace_GetLeft(zone, start.Item.Parent, start.Item, leftitems);
             // 右边的结构化部分，扫描得到
             _Replace_GetRight(zone, end.Item.Parent, end.Item, rightitems);
-            
+
             // 用Build系统重构
             BuildStart(zone.Parent, zone.ID);
             BuildAppend(leftitems);
             BuildTabStart(leftpos.GetByteSpaceCount(), 4);
-            BuildAppend(text);
+            string replacedtext = BuildAppend(text, startleftpart.Length, text.Length - startleftpart.Length - endrightpart.Length);
             BuildWaitCaret(caretline, endrightpart.Length);
             BuildTabEnd();
             BuildAppend(rightitems);
             BuildEnd();
+
+            return replacedtext;
         }
 
         /// <summary> 扫描左侧部分，搜集到容器中 </summary>
@@ -498,6 +544,22 @@ namespace Morenan.MRATextBox.Core
         private ITextZone buildzone;
         /// <summary> Build系统处理的域的位置 </summary>
         private int buildid;
+        /// <summary> Build系统影响到的第一行 </summary>
+        private int buildlinestart;
+        /// <summary> Build系统影响到的第一行 </summary>
+        public int BuildLineStart { get { return this.buildlinestart; } }
+        /// <summary> Build系统影响到的最后一行 </summary>
+        private int buildlineend;
+        /// <summary> Build系统影响到的最后一行 </summary>
+        public int BuildLineEnd { get { return this.buildlineend; } }
+        /// <summary> 影响第一行对应的原第一行 </summary>
+        private int originlinestart;
+        /// <summary> 影响第一行对应的原第一行 </summary>
+        public int OriginLineStart { get { return this.originlinestart; } }
+        /// <summary> 影响最后一行对应的原最后一行 </summary>
+        private int originlineend;
+        /// <summary> 影响最后一行对应的原最后一行 </summary>
+        public int OriginLineEnd { get { return this.originlineend; } }
         /// <summary> Build系统LIFO生成 </summary>
         private List<ITextItem> builditems = new List<ITextItem>();
         /// <summary> Build系统文本解析后的结构项 </summary>
@@ -525,12 +587,13 @@ namespace Morenan.MRATextBox.Core
         private int waitcaretline;
         /// <summary> 插入光标所在项的退格距离 </summary>
         private int waitcaretbackindex;
-
+        /// <summary> 插入光标所在项的倒退行数 </summary>
+        private int waitcaretbackline;
         /// <summary> 转换tab符时需要统计的字节数量 </summary>
         private int tabbytecount;
         /// <summary> 制表符转换为空格符的空格周期 </summary>
         private int tabbyteperiod;
-
+        
         /// <summary> 开始Build系统 </summary>
         /// <param name="zone">Build系统处理的域</param>
         /// <param name="id">Build系统处理的域的位置</param>
@@ -550,34 +613,89 @@ namespace Morenan.MRATextBox.Core
         /// <summary> 结束Build系统，将成果作用于给定的域中 </summary>
         protected void BuildEnd()
         {
+            // 未完成的注释行换行符允许为空
+            if (cmtline != null)
+            {
+                int start = cmtline.ID;
+                ITextLine line = new TextLine(this, cmtline, null);
+                line.Replace(1, 0, builditems.GetRange(start + 1, builditems.Count() - start - 1));
+                builditems.RemoveRange(start, builditems.Count() - start);
+                builditems.Add(line);
+                cmtline = null;
+            }
+            // 未完成的普通行换行符允许为空
+            foreach (ITextKey linekey in linekeys)
+            {
+                int start = linekey.ID;
+                ITextLine line = new TextLine(this, linekey, null);
+                line.Replace(1, 0, builditems.GetRange(start + 1, builditems.Count() - start - 1));
+                builditems.RemoveRange(start, builditems.Count() - start);
+                builditems.Add(line);
+            }
+            linekeys.Clear();
+            // 对结构重构可能性的判断
+            bool structchanged = false;
+            bool _IsZoneBorder(ITextItem item)
+            {
+                if (!(item is ITextKey)) return false;
+                ITextKey key = (ITextKey)item;
+                return (key.KeyCore.Feature & (TextKeyFeatures.ZoneLeft | TextKeyFeatures.ZoneRight)) != TextKeyFeatures.None;
+            }
+            bool _IsContinueCommentLine(ITextItem item)
+            {
+                if (!(item is ITextLine)) return false;
+                ITextLine line = (ITextLine)item;
+                ITextItem left = line.Items.FirstOrDefault();
+                if (!(left is ITextKey)) return false;
+                ITextKey lkey = (ITextKey)left;
+                if ((lkey.KeyCore.Feature & TextKeyFeatures.LineComment) == TextKeyFeatures.None) return false;
+                if (line.HasEnterEnd()) return false;
+                return true;
+            }
+            if (!structchanged) structchanged = builditems.FirstOrDefault(_IsZoneBorder) != null;
+            if (!structchanged) structchanged = _IsContinueCommentLine(builditems.LastOrDefault());
+            // 缩进相关信息
+            ITextZone intentzone = null;
+            int intentstart = -1;
+            int intentcount = 0;
             // 如果改变域为空，说明重构的是整个根
             if (buildzone == null)
             {
+                this.originlinestart = 1;
+                this.originlineend = linecount;
                 Replace(0, items.Count(), builditems);
+                this.buildlinestart = 1;
+                this.buildlineend = linecount;
+                intentzone = this;
+                intentstart = 0;
+                intentcount = items.Count();
+                //AutoIntent(this, 0, items.Count());
             }
-            // 如果生成的项中包含关键词，则有可能改变域的结构
-            else if (builditems.FirstOrDefault(i => i is ITextKey) != null)
+            // 有可能改变域的结构，需要将这个域拆开，迭代给上一层并重开Build系统来处理
+            else if (structchanged)
             {
-                // 如果是Root的话就不用向上迭代了
-                if (buildzone == this)
-                {
-                    Replace(buildid, 1, builditems);
-                }
-                // 否则需要将这个域拆开，迭代给上一层并重开Build系统来处理
-                else
-                {
-                    ITextItem[] _builditems = builditems.ToArray();
-                    BuildStart(buildzone.Parent, buildzone.ID);
-                    BuildAppend(buildzone.GetRange(0, buildid));
-                    BuildAppend(_builditems);
-                    BuildAppend(buildzone.GetRange(buildid + 1, buildzone.Items.Count() - (buildid + 1)));
-                    BuildEnd();
-                }
+                ITextItem[] _builditems = builditems.ToArray();
+                ITextZone _buildzone = buildzone;
+                int _buildid = buildid;
+                BuildStart(buildzone.Parent, buildzone.ID);
+                BuildAppend(_buildzone.GetRange(0, _buildid));
+                BuildAppend(_builditems);
+                BuildAppend(_buildzone.GetRange(_buildid + 1, _buildzone.Items.Count() - (_buildid + 1)));
+                BuildEnd();
             }
             // 没有就可以直接替换了
             else
             {
+                ITextItem originitem = buildzone.Items[buildid];
+                this.originlinestart = GetFirstLine(originitem);
+                this.originlineend = GetLastLine(originitem);
                 buildzone.Replace(buildid, 1, builditems);
+                this.buildlinestart = GetFirstLine(buildzone.Items[buildid]);
+                this.buildlineend = GetLastLine(buildzone.Items[buildid + builditems.Count() - 1]);
+                //AutoIntent(buildzone, buildid, builditems.Count());
+                intentzone = buildzone;
+                intentstart = buildid;
+                intentcount = builditems.Count();
             }
             // 完成后插入预定位置的光标
             if (waitcaret != null)
@@ -588,6 +706,10 @@ namespace Morenan.MRATextBox.Core
                 selectedend = new TextPosition() { Item = waitcaret, ItemIndex = waitcaretitemindex, Line = waitcaretline, Column = -1 };
                 waitcaret = null;
                 waitcaretitemindex = -1;
+            }
+            if (intentzone != null)
+            {
+                AutoIntent(intentzone, intentstart, intentcount);
             }
         }
 
@@ -624,14 +746,26 @@ namespace Morenan.MRATextBox.Core
                     // 新的关键词强制优先生成
                     if (newword != null && dictkey.ContainsKey(newword))
                     {
-                        builditems.RemoveAt(builditems.Count() - 1);
                         item = new TextKey(this, dictkey[newword]);
+                        // 之前的等待光标项换成合并后的项
+                        if (waitcaret != null && waitcaret == builditems.LastOrDefault())
+                        {
+                            waitcaretbackindex += newword.Length - waitcaret.ToString().Length;
+                            waitcaret = item;
+                        }
+                        builditems.RemoveAt(builditems.Count() - 1);
                     }
                     // 可以向前合并
                     else if (combine)
                     {
-                        builditems.RemoveAt(builditems.Count() - 1);
                         item = new TextWord(this, newword);
+                        // 之前的等待光标项换成合并后的项
+                        if (waitcaret != null && waitcaret == builditems.LastOrDefault())
+                        {
+                            waitcaretbackindex += newword.Length - waitcaret.ToString().Length;
+                            waitcaret = item;
+                        }
+                        builditems.RemoveAt(builditems.Count() - 1);
                     }
                 }
                 // 如果为关键词                
@@ -679,6 +813,11 @@ namespace Morenan.MRATextBox.Core
                         // 生成新的关键词
                         key = new TextKey(this, dictkey[newword]);
                         keycore = key.KeyCore;
+                        if (waitcaret != null && waitcaret == builditems.LastOrDefault())
+                        {
+                            waitcaretbackindex += newword.Length - waitcaret.ToString().Length;
+                            waitcaret = key;
+                        }
                         builditems.RemoveAt(builditems.Count() - 1);
                     }
                     // 这个关键词被破坏？
@@ -691,7 +830,13 @@ namespace Morenan.MRATextBox.Core
                         // 后面停止分析，直接加入队列中
                         key = null;
                         keycore = null;
-                        builditems[builditems.Count() - 1] = new TextWord(this, newword);
+                        ITextWord word = new TextWord(this, newword);
+                        if (waitcaret != null && waitcaret == builditems.LastOrDefault())
+                        {
+                            waitcaretbackindex += newword.Length - waitcaret.ToString().Length;
+                            waitcaret = word;
+                        }
+                        builditems[builditems.Count() - 1] = word;
                     }
                     // 关键词还存在的话，继续分析...
                     if (key != null && keycore != null)
@@ -801,10 +946,21 @@ namespace Morenan.MRATextBox.Core
                     ITextItem last = builditems.LastOrDefault();
                     // 和之前的末尾空白符合并
                     if (last is ITextTrim)
+                    {
+                        ITextTrim newtrim = new TextTrim(this, last.ToString() + trim.ToString());
+                        // 之前的等待光标项换成合并后的项
+                        if (waitcaret != null && waitcaret == builditems.LastOrDefault())
+                        {
+                            waitcaretbackindex += newtrim.ToString().Length - trim.ToString().Length;
+                            waitcaret = newtrim;
+                        }
                         builditems[builditems.Count() - 1] = last.Insert(last.ToString().Count(), trim.ToString());
+                    }
                     // 作为新的空白符添加
                     else
+                    {
                         builditems.Add(trim);
+                    }
                     last = builditems.LastOrDefault();
                     trim = (ITextTrim)last;
                     // 换行符之前没有续行符
@@ -833,6 +989,16 @@ namespace Morenan.MRATextBox.Core
                         }
                     }
                 }
+                // 如果是特殊行
+                else if (item is ITextLine)
+                {
+                    ITextLine line = (ITextLine)item;
+                    // 特殊行没有换行的话，拆开重新分析
+                    if (!line.HasEnterEnd() || line.HasEnterContinue())
+                        BuildDestoryZone(line);
+                    else
+                        builditems.Add(item);
+                }
                 // 其他类型的项直接添加
                 else
                     builditems.Add(item);
@@ -841,13 +1007,20 @@ namespace Morenan.MRATextBox.Core
 
         /// <summary> 往Build系统中添加非结构文本 </summary>
         /// <param name="text">添加的文本</param>
-        protected void BuildAppend(string text)
+        /// <param name="endline">添加这段文本后最后一行的位置</param>
+        protected string BuildAppend(string text, int start, int count)
         {
+            waitcaret = null;
+            waitcaretbackindex = 0;
+            waitcaretbackline = 0;
+            // 实际插入的文本
+            StringBuilder actual = new StringBuilder();
             // 清空等待队列
             waititems.Clear();
             // 依次分析每个字符
-            foreach (char ch in text)
+            for (int chid = 0; chid < text.Length; chid++)
             {
+                char ch = text[chid];
                 // 等待队列的末尾，对这个尾巴进行一系列条件分析
                 ITextItem lastitem = waititems.LastOrDefault();
                 // 等待队列为空则获取生成队列的末尾
@@ -871,29 +1044,40 @@ namespace Morenan.MRATextBox.Core
                             ITextTrim trim = new TextTrim(this, tospacetext);
                             waititems.Add(trim);
                         }
+                        if (chid >= start && chid < start + count)
+                            actual.Append(tospacetext);
                         continue;
                     }
                     else if (ch == '\n')
                     {
                         tabbytecount = 0;
+                        if (waitcaret != null && chid >= start && chid < start + count) waitcaretbackline++;
                     }
                     else
                     {
                         tabbytecount += TextChar.GetByteSpaceCount(ch);
                         while (tabbytecount >= tabbyteperiod) tabbytecount -= tabbyteperiod;
                     }
-                }
+                }    
                 // 末尾非区域类，单词类有延展性
                 if (lastitem != null && !(lastitem is ITextZone))
                 {
                     // 空白项和空白字符可以合并延展
                     if (lastitem is ITextTrim && TextChar.IsTrim(ch))
                     {
+                        ITextTrim trim = new TextTrim(this, lastitem.ToString() + ch);
+                        if (waitcaret == lastitem)
+                        {
+                            waitcaret = trim;
+                            waitcaretbackindex++;
+                        }
                         // 将延展后的项末尾替换
                         if (waititems.Count() > 0)
-                            waititems[waititems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
+                            waititems[waititems.Count() - 1] = trim;
                         else if (builditems.Count() > 0)
-                            builditems[builditems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
+                            builditems[builditems.Count() - 1] = trim;
+                        if (chid >= start && chid < start + count)
+                            actual.Append(ch);
                         continue;
                     }
                     // 单词项和单词字符可以合并延展，这里对可能生成的关键词优先处理
@@ -909,6 +1093,25 @@ namespace Morenan.MRATextBox.Core
                                 waititems[waititems.Count() - 1] = key;
                             else if (builditems.Count() > 0)
                                 builditems[builditems.Count() - 1] = key;
+                            // 对通过最后一个字符合并生成的左括号，自动填充一个空格和对应的右括号
+                            if ((keycore.Feature & TextKeyFeatures.ZoneLeft) != TextKeyFeatures.None 
+                                && count > 0 && chid == start + count - 1)
+                            {
+                                // 建议光标插入左括号后面，准备填写括号内容
+                                waitcaret = key;
+                                waitcaretbackindex = 0;
+                                // 添加一个空格和右括号
+                                keycore = keycore.That;
+                                key = new TextKey(this, keycore);
+                                waititems.Add(new TextTrim(this, " "));
+                                waititems.Add(key);
+                                actual.Append(" ");
+                                actual.Append(keycore.Keyword);
+                            }
+                            else if (chid >= start && chid < start + count)
+                            {
+                                actual.Append(ch);
+                            }
                             continue;
                         }
                     }
@@ -919,6 +1122,8 @@ namespace Morenan.MRATextBox.Core
                     ITextKeyCore keycore = dictonekey[ch];
                     ITextKey key = new TextKey(this, keycore) { ID = builditems.Count() };
                     waititems.Add(key);
+                    if (chid >= start && chid < start + count)
+                        actual.Append(ch);
                     continue;
                 }
                 // 单词项和单词字符可以合并延展，这里对生成的新的单词进行处理
@@ -939,6 +1144,8 @@ namespace Morenan.MRATextBox.Core
                                     waititems[waititems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
                                 else if (builditems.Count() > 0)
                                     builditems[builditems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
+                                if (chid >= start && chid < start + count)
+                                    actual.Append(ch);
                                 continue;
                             }
                         }
@@ -949,6 +1156,8 @@ namespace Morenan.MRATextBox.Core
                                 waititems[waititems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
                             else if (builditems.Count() > 0)
                                 builditems[builditems.Count() - 1] = lastitem.Insert(lastitem.ToString().Count(), ch.ToString());
+                            if (chid >= start && chid < start + count)
+                                actual.Append(ch);
                             continue;
                         }
                     }
@@ -958,28 +1167,53 @@ namespace Morenan.MRATextBox.Core
                 {
                     ITextTrim trim = new TextTrim(this, ch.ToString());
                     waititems.Add(trim);
+                    if (chid >= start && chid < start + count)
+                        actual.Append(ch);
                     continue;
                 }
                 // 单词符生成单词项
                 {
                     ITextWord word = new TextWord(this, ch.ToString());
                     waititems.Add(word);
+                    if (chid >= start && chid < start + count)
+                        actual.Append(ch);
                     continue;
                 }
             }
             // 给结构化处理
             BuildAppend(waititems);
+            // 返回实际插入的文本
+            return actual.ToString();
+        }
+
+        /// <summary> 拆开一个域重新分析 </summary>
+        /// <param name="zone">要拆开的域</param>
+        protected void BuildDestoryZone(ITextZone zone)
+        {
+            BuildAppend(zone.Items);
         }
 
         /// <summary> 等待Build系统完成后在此处插入光标 </summary>
+        /// <param name="line">插入的光标所在的行</param>
+        /// <param name="backindex">末尾退格</param>
         protected void BuildWaitCaret(int line, int backindex)
         {
-            waitcaret = builditems.LastOrDefault();
-            waitcaretitemindex = waitcaret != null ? waitcaret.ToString().Length - backindex : -1;
-            waitcaretline = line;
-            waitcaretbackindex = backindex;
+            // 如果之前没有建议光标项，则应用此处设置
+            if (waitcaret == null)
+            {
+                waitcaret = builditems.LastOrDefault();
+                waitcaretitemindex = waitcaret != null ? waitcaret.ToString().Length - backindex : -1;
+                waitcaretline = line;
+                waitcaretbackindex = backindex;
+            }
+            // 之前有建议光标项，则只需要更新行的位置
+            else
+            {
+                waitcaretitemindex = waitcaret.ToString().Length - waitcaretbackindex;
+                waitcaretline = line - waitcaretbackline;
+            }
         }
-
+        
         /// <summary> 开启制表符转换功能 </summary>
         /// <param name="_bytecount"></param>
         protected void BuildTabStart(int _bytecount, int _byteperiod)
@@ -992,7 +1226,130 @@ namespace Morenan.MRATextBox.Core
         protected void BuildTabEnd()
         {
             this.tabbytecount = -1;
-            this.tabbyteperiod = -1;
+            //this.tabbyteperiod = -1;
+        }
+
+        #endregion
+
+        #region Intent
+
+        /// <summary> 是否允许缩进 </summary>
+        private bool intentenable = true;
+        /// <summary> 是否允许缩进 </summary>
+        public bool IntentEnable { get { return this.intentenable; } set { this.intentenable = value; } }
+        
+        /// <summary> 对这个域里的的一部分内容进行自动缩进操作 </summary>
+        /// <param name="zone">指定的域</param>
+        /// <param name="start">域内自动缩进项的开始</param>
+        /// <param name="count">域内自动缩进项的长度</param>
+        /// <returns>执行的缩进动作</returns>
+        public ITextIndentAction AutoIntent(ITextZone zone, int start, int count)
+        {
+            if (!intentenable) return null;
+            int intentlinestart = GetFirstLine(zone.Items[start]);
+            int intentlineend = GetLastLine(zone.Items[start + count - 1]);
+            ITextIndentAction action = new TextIndentAction();
+            action.NewLineStart = action.OldLineStart = selectedstart.Line;
+            action.NewLineEnd = action.OldLineEnd = selectedend.Line;
+            action.NewColumnStart = action.OldColumnStart = selectedstart.Column;
+            action.NewColumnEnd = action.OldColumnEnd = selectedend.Column;
+            action.IndentStartLine = intentlinestart;
+            action.IndentSpaces = new int[intentlineend - intentlinestart + 1];
+            action.IndentIndics = new int[intentlineend - intentlinestart + 1];
+            _AutoIntent(zone, start, count, action, intentlinestart);
+            if (action.NewLineStart >= intentlinestart && action.NewLineStart <= intentlineend)
+            {
+                int id = action.NewLineStart - action.IndentStartLine;
+                action.NewColumnStart += action.IndentSpaces[id];
+                action.NewColumnStart = Math.Max(action.NewColumnStart, action.IndentIndics[id] + 1);
+            }
+            if (action.NewLineEnd >= intentlinestart && action.NewLineEnd <= intentlineend)
+            {
+                int id = action.NewLineEnd - action.IndentStartLine;
+                action.NewColumnEnd += action.IndentSpaces[id];
+                action.NewColumnEnd = Math.Max(action.NewColumnEnd, action.IndentIndics[id] + 1);
+            }
+            selectedstart = GetPosition(action.NewLineStart, action.NewColumnStart);
+            selectedend = GetPosition(action.NewLineEnd, action.NewColumnEnd);
+            undocore.Add(action);
+            return action; 
+        }
+        
+        /// <summary> 对这个域里的的一部分内容进行自动缩进操作 </summary>
+        /// <param name="zone">指定的域</param>
+        /// <param name="start">域内自动缩进项的开始</param>
+        /// <param name="count">域内自动缩进项的长度</param>
+        /// <param name="action">执行的缩进动作</param>
+        /// <param name="linestart">域的开始行</param>
+        protected void _AutoIntent(ITextZone zone, int start, int count, ITextIndentAction action, int linestart)
+        {
+            for (int i = start; i < start + count; i++)
+            {
+                ITextItem item = zone.Items[i];
+                if (item is ITextTrim)
+                {
+                    ITextTrim trim = (ITextTrim)item;
+                    int entercount = trim.GetEnterCount();
+                    if (entercount > 0)
+                    {
+                        string oldtext = trim.ToString();
+                        int enterid = oldtext.IndexOf('\n');
+                        int height = zone.Level + 1;
+                        StringBuilder newtext = new StringBuilder(oldtext.Substring(0, enterid));
+                        if (zone.Level >= 0 && i >= zone.Items.Count - 1) height--;
+                        string fragment = '\n' + new string(' ', height * tabbyteperiod);
+                        if (zone.Level >= 0 && i == zone.Items.Count - 2) height--;
+                        string fragend = '\n' + new string(' ', height * tabbyteperiod);
+                        for (int j = 0; j < entercount - 1; j++) newtext.Append(fragment);
+                        newtext.Append(fragend);
+                        zone.Items[i] = new TextTrim(this, newtext.ToString()) { Parent = zone, ID = i, Level = zone.Level + 1};
+                        for (int ai = -1, j = 0; j < oldtext.Length; j++)
+                        {
+                            if (oldtext[j] == '\n')
+                            {
+                                ai = ai < 0 ? linestart - action.IndentStartLine + 1 : ai + 1;
+                                action.IndentSpaces[ai] = (ai == linestart + entercount - action.IndentStartLine) ? (fragend.Length - 1) : (fragment.Length - 1);
+                                action.IndentIndics[ai] = action.IndentSpaces[ai];
+                            }
+                            else if (ai >= 0)
+                                action.IndentSpaces[ai]--;
+                        }
+                        linestart += entercount;
+                    }
+                }
+                else if (item is ITextZone)
+                {
+                    ITextZone subzone = (ITextZone)item;
+                    _AutoIntent(subzone, 0, subzone.Items.Count, action, linestart);
+                    linestart += subzone.LineCount - 1;
+                }
+            }
+        }
+
+        /// <summary> 将缩在1行的域扩展为3行 </summary>
+        /// <param name="zone">一行域</param>
+        /// <returns>1to3动作</returns>
+        public IText1to3LineAction To3Line(ITextZone zone)
+        {
+            IText1to3LineAction action = null;
+            if (zone.Parent != null && zone.Parent.LineCount == 1)
+                action = To3Line(zone.Parent);
+            else
+                action = new Text1to3LineAction() { SourceLine = GetFirstLine(zone), ToLineNumber = 1 };
+            action.OldLineStart = selectedstart.Line;
+            action.OldLineEnd = selectedend.Line;
+            action.OldColumnStart = selectedstart.Column;
+            action.OldColumnEnd = selectedend.Column;
+            action.ToLineNumber += 2;
+            zone.Replace(1, 0, new ITextItem[] { new TextTrim(this, "\n") });
+            zone.Replace(zone.Items.Count - 2, 0, new ITextItem[] { new TextTrim(this, "\n") });
+            selectedstart = GetFirstPosition(zone.Items[zone.Items.Count - 2]);
+            selectedend = selectedstart.Clone();
+            action.NewLineStart = selectedstart.Line;
+            action.NewLineEnd = selectedend.Line;
+            action.NewColumnStart = selectedstart.Column;
+            action.NewColumnEnd = selectedend.Column;
+            return action;
         }
 
         #endregion
@@ -1042,19 +1399,77 @@ namespace Morenan.MRATextBox.Core
         public ITextPosition GetPosition(int line, int column)
         {
             ITextPosition tpos = GetFirstPosition();
+            tpos = tpos?.MoveLine(line - 1);
+            tpos = tpos?.Move(column - 1);
+            /*
             for (int i = 2; i <= line; i++)
             {
                 if (tpos == null) return null;
                 tpos = tpos.NextLine();
             }
-            for (int i = 2; i < column; i++)
+            for (int i = 2; i <= column; i++)
             {
                 if (tpos == null) return null;
                 tpos = tpos.Next();
             }
+            */
             return tpos;
         }
+        
+        /// <summary> 获取该项的第一行 </summary>
+        /// <param name="item">文本项</param>
+        /// <returns>行数</returns>
+        public int GetFirstLine(ITextItem item)
+        {
+            if (item.Parent == null) return 1;
+            int line = GetFirstLine(item.Parent);
+            for (int i = 0; i < item.ID; i++)
+            {
+                ITextItem prev = item.Parent.Items[i];
+                if (prev is ITextTrim) line += ((ITextTrim)prev).GetEnterCount();
+                if (prev is ITextZone) line += ((ITextZone)prev).LineCount - 1;
+            }
+            return line;
+        }
 
+        /// <summary> 获取该项的最后一行 </summary>
+        /// <param name="item">文本项</param>
+        /// <returns>行数</returns>
+        public int GetLastLine(ITextItem item)
+        {
+            if (item.Parent == null) return LineCount;
+            int line = GetLastLine(item.Parent);
+            for (int i = item.ID + 1; i < item.Parent.Items.Count; i++)
+            {
+                ITextItem next = item.Parent.Items[i];
+                if (next is ITextTrim) line -= ((ITextTrim)next).GetEnterCount();
+                if (next is ITextZone) line -= ((ITextZone)next).LineCount - 1;
+            }
+            return line;
+        }
+
+        /// <summary> 获取这个文本项的起始位置对象，若该项不为底部基本项，返回项内最靠前位置 </summary>
+        /// <param name="item">文本项</param>
+        /// <returns>起始位置对象</returns>
+        public ITextPosition GetFirstPosition(ITextItem item)
+        {
+            if (item.Parent == null) return GetFirstPosition();
+            int line = GetFirstLine(item);
+            while (item is ITextZone) item = ((ITextZone)item).Items.FirstOrDefault();
+            return new TextPosition() { Item = item, ItemIndex = 0, Line = line, Column = -1 };
+
+        }
+
+        /// <summary> 获取这个文本项的终止位置对象，若该项不为底部基本项，返回项内最靠后位置 </summary>
+        /// <param name="item">文本项</param>
+        /// <returns>终止位置对象</returns>
+        public ITextPosition GetLastPosition(ITextItem item)
+        {
+            if (item.Parent == null) return GetLastPosition();
+            int line = GetLastLine(item);
+            while (item is ITextZone) item = ((ITextZone)item).Items.LastOrDefault();
+            return new TextPosition() { Item = item, ItemIndex = item.ToString().Length, Line = line, Column = -1 };
+        }
 
         #endregion
 
@@ -1192,14 +1607,20 @@ namespace Morenan.MRATextBox.Core
                         if (keynew.Keyword.Length == 1)
                         {
                             if (dictonekey.TryGetValue(keynew.Keyword[0], out keyold))
+                            {
                                 keyold.Collection.Items.Add(keynew);
+                                keynew.Collection = keyold.Collection;
+                            }
                             else
                                 dictonekey.Add(keynew.Keyword[0], keynew);
                         }
                         else if (keynew.Keyword.Length > 1)
                         {
                             if (dictkey.TryGetValue(keynew.Keyword, out keyold))
+                            {
                                 keyold.Collection.Items.Add(keynew);
+                                keynew.Collection = keyold.Collection;
+                            }
                             else
                                 dictkey.Add(keynew.Keyword, keynew);
                         }
@@ -1267,42 +1688,50 @@ namespace Morenan.MRATextBox.Core
         /// <summary> 撤销 </summary>
         public void Undo()
         {
-            ITextUndoRedoAction action = undocore.Undo();
-            if (action.Backspace)
+            ITextAction _action = undocore.Undo();
+            if (_action is ITextUndoRedoAction)
             {
-                ITextPosition bppos = GetPosition(action.OldLineStart, action.OldColumnStart);
-                for (int i = 0; i < action.BackspaceText.Length; i++) bppos = bppos?.Prev();
-                Replace(bppos, bppos, action.BackspaceText);
-            }
-            else
-            {
-                ITextPosition posstart = GetPosition(action.OldLineStart, action.OldColumnStart);
-                ITextPosition posend = posstart;
-                for (int i = 0; i < action.ReplacedText.Length; i++) posend = posend?.Next();
-                if (posstart == null || posend == null) return;
-                Replace(posstart, posend, action.RemovedText);
+                ITextUndoRedoAction action = (ITextUndoRedoAction)_action;
+                if (action.Backspace)
+                {
+                    ITextPosition bppos = GetPosition(action.OldLineStart, action.OldColumnStart);
+                    for (int i = 0; i < action.BackspaceText.Length; i++) bppos = bppos?.Prev();
+                    Replace(bppos, bppos, action.BackspaceText);
+                }
+                else
+                {
+                    ITextPosition posstart = GetPosition(action.OldLineStart, action.OldColumnStart);
+                    ITextPosition posend = posstart;
+                    for (int i = 0; i < action.ReplacedText.Length; i++) posend = posend?.Next();
+                    if (posstart == null || posend == null) return;
+                    Replace(posstart, posend, action.RemovedText);
+                }
             }
         }
         
         /// <summary> 恢复 </summary>
         public void Redo()
         {
-            ITextUndoRedoAction action = undocore.Undo();
-            if (action.Backspace)
+            ITextAction _action = undocore.Undo();
+            if (_action is ITextUndoRedoAction)
             {
-                ITextPosition bppos = GetPosition(action.OldLineStart, action.OldColumnStart);
-                if (bppos == null) return;
-                selectedstart = bppos;
-                selectedend = bppos;
-                Backspace(action.BackspaceText.Length);
-            }
-            else
-            {
-                ITextPosition posstart = GetPosition(action.OldLineStart, action.OldColumnStart);
-                ITextPosition posend = posstart;
-                for (int i = 0; i < action.RemovedText.Length; i++) posend = posend?.Next();
-                if (posstart == null || posend == null) return;
-                Replace(posstart, posend, action.ReplacedText);
+                ITextUndoRedoAction action = (ITextUndoRedoAction)_action;
+                if (action.Backspace)
+                {
+                    ITextPosition bppos = GetPosition(action.OldLineStart, action.OldColumnStart);
+                    if (bppos == null) return;
+                    selectedstart = bppos;
+                    selectedend = bppos;
+                    Backspace(action.BackspaceText.Length);
+                }
+                else
+                {
+                    ITextPosition posstart = GetPosition(action.OldLineStart, action.OldColumnStart);
+                    ITextPosition posend = posstart;
+                    for (int i = 0; i < action.RemovedText.Length; i++) posend = posend?.Next();
+                    if (posstart == null || posend == null) return;
+                    Replace(posstart, posend, action.ReplacedText);
+                }
             }
         }
 
