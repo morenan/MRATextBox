@@ -128,6 +128,7 @@
     <Compile Include="View\MRATextSource.cs" />
     <Compile Include="View\MRATextVirtualizeStackPanel.cs" />
     <Compile Include="View\MRAZoneSkipInfo.cs" />
+    <Compile Include="View\VirtualizingWrapPanel.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

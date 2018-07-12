@@ -8,15 +8,16 @@ namespace Morenan.MRATextBox.Counselor
 {
     internal class MRAZoneContext : IMRAZoneContext
     {
-        public MRAZoneContext(string _name, IMRATextInputContext _inputcontext)
+        public MRAZoneContext(string _name, IMRATextInputContext _inputcontext, MRAZoneAction _action)
         {
             this.name = _name;
+            this.action = _action;
             this.inputcontext = _inputcontext;
         }
 
         private string name;
         public string Name { get { return this.name; } }
-
+        
         private MRAZoneAction action;
         public MRAZoneAction Action { get { return this.action; } }
 
@@ -30,6 +31,8 @@ namespace Morenan.MRATextBox.Counselor
         /// <summary> 在界面上收缩这个区域 </summary>
         Skip,
         /// <summary> 在界面上展开这个区域 </summary>
-        Show
+        Show,
+        /// <summary> 将一行区域展开成至少三行 </summary>
+        To3Line,
     }
 }

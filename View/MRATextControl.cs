@@ -16,7 +16,7 @@ using System.Windows.Data;
 namespace Morenan.MRATextBox.View
 {
     /// <summary> 充当文本编辑器的容器面板 </summary>
-    internal class MRATextControl : ListBox
+    internal class MRATextControl : ItemsControl
     {
         static MRATextControl()
         {
@@ -61,19 +61,13 @@ namespace Morenan.MRATextBox.View
         public MRATextBox ViewParent { get { return core?.View; } }
 
         /// <summary> 虚拟化栈容器 </summary>
-        private MRATextVirtualizeStackPanel ui_stack;
+        private MRATextVirtualizingStackPanel ui_stack;
         /// <summary> 虚拟化栈容器 </summary>
-        public MRATextVirtualizeStackPanel UI_Stack
+        public MRATextVirtualizingStackPanel UI_Stack
         {
             get { return this.ui_stack; }
-            set {  this.ui_stack = value; }
+            set { this.ui_stack = value; }
         }
-        
-        private ScrollBar ui_hscroll;
-        public ScrollBar UI_HScroll { get { return this.ui_hscroll; } }
-
-        private ScrollBar ui_vscroll;
-        public ScrollBar UI_VScroll { get { return this.ui_vscroll; } }
 
         /// <summary> 所有文本行项 </summary>
         private List<IMRATextItemInfo> items;
@@ -81,7 +75,7 @@ namespace Morenan.MRATextBox.View
         private List<IMRAZoneSkipInfo> skips;
 
         /// <summary> 所有鼠标动作 </summary>
-        private enum MouseActions { Up = 0, Down = 1, Drag = 3 };
+        private enum MouseActions { Up = 0, Down = 1, Drag = 3, Item = 4 };
         /// <summary> 所有滑动动作 </summary>
         private enum SlideActions { None = 0, Up = 1, Down = 2, Left = 4, Right = 8 };
 
@@ -106,6 +100,16 @@ namespace Morenan.MRATextBox.View
 
         #region Method
         
+        public void InvalidateItemsSource()
+        {
+            ui_stack?.InvalidateLogicItems(items);
+            ItemsSource = items;
+            this.hitcache = null;
+            this.structbarzone = null;
+            this.structbarstart = 0;
+            this.structbarend = -1;
+        }
+
         /// <summary> 当前行项无效化，重新生成一遍 </summary>
         public void InvalidateItems()
         {
@@ -126,8 +130,9 @@ namespace Morenan.MRATextBox.View
                         IMRAZoneSkipInfo skip = skips[skipid++];
                         skip.ID = items.Count();
                         skip.Start = current;
-                        for (int j = skip.LineStart; j <= skip.LineEnd; j++)
-                            current = current?.NextLine();
+                        current = current?.MoveLine(skip.LineEnd - skip.LineStart + 1);
+                        //for (int j = skip.LineStart; j <= skip.LineEnd; j++)
+                        //    current = current?.NextLine();
                         skip.End = current?.Prev() ?? core.GetLastPosition();
                         i = skip.LineEnd;
                         items.Add(skip);
@@ -144,10 +149,7 @@ namespace Morenan.MRATextBox.View
                         items.Add(item);
                     }
                 }
-            
-            ItemsSource = items;
-            this.hitcache = null;
-            this.selectedstart = Core.SelectedStart;
+            InvalidateItemsSource();
         }
 
         /// <summary> 选择范围内的行项无效化，重新生成一遍 </summary>
@@ -155,6 +157,7 @@ namespace Morenan.MRATextBox.View
         /// <param name="count">范围长度</param>
         protected void _InvalidateItems(int start, int count)
         {
+            /*
             bool hasspitem = false;
             for (int i = start; i < start + count; i++)
             {
@@ -164,7 +167,9 @@ namespace Morenan.MRATextBox.View
             if (hasspitem)
             {
                 List<IMRATextItemInfo> _items = items.GetRange(0, start);
-                ITextPosition current = _items.LastOrDefault()?.End?.NextLine() ?? core.GetFirstPosition();
+                IMRATextItemInfo _last = _items.LastOrDefault();
+                if (_last != null) _last.End = _last.Start?.NextLine()?.Prev() ?? core.GetLastPosition();
+                ITextPosition current = _last?.End?.NextLine() ?? core.GetFirstPosition();
                 for (int i = start; i < start + count; i++)
                 {
                     if (items[i] is IMRAZoneSkipInfo)
@@ -189,20 +194,38 @@ namespace Morenan.MRATextBox.View
                         _items.Add(newitem);
                     }
                 }
+                for (int i = start + count; i < items.Count(); i++)
+                {
+                    if (i == start + count) items[i].Start = current ?? core.GetFirstPosition();
+                    _items.Add(items[i]);
+                }
                 items = _items;
-                ItemsSource = items;
+                InvalidateItemsSource();
             }
             else
-            {
+            {*/
+                if (start > 0) items[start - 1].End = items[start - 1].Start?.NextLine()?.Prev() ?? core.GetLastPosition();
                 ITextPosition current = start > 0 ? (items[start - 1].End?.NextLine() ?? core.GetFirstPosition()) : core.GetFirstPosition();
                 for (int i = start; i < start + count; i++)
                 {
-                    items[i].Start = current;
-                    current = current?.NextLine();
-                    items[i].End = current?.Prev() ?? core.GetLastPosition();
-                    items[i]?.View?.InvalidateVisual();
+                    if (items[i] is IMRAZoneSkipInfo)
+                    {
+                        IMRAZoneSkipInfo zsitem = (IMRAZoneSkipInfo)items[i];
+                        zsitem.Start = current;
+                        current = current?.MoveLine(zsitem.LineEnd - zsitem.LineStart + 1);
+                        zsitem.End = current?.Prev() ?? core.GetLastPosition();
+                        zsitem?.View?.InvalidateVisual();
+                    }
+                    else
+                    {
+                        items[i].Start = current;
+                        current = current?.NextLine();
+                        items[i].End = current?.Prev() ?? core.GetLastPosition();
+                        items[i]?.View?.InvalidateVisual();
+                    }
                 }
-            }
+                if (start + count < items.Count()) items[start + count].Start = current ?? core.GetFirstPosition();
+            //}
         }
 
         /// <summary> 针对行的实际数量的更改，第几行到第几行无效化，转移到新的行范围 </summary>
@@ -216,18 +239,50 @@ namespace Morenan.MRATextBox.View
             int newcount = newend - newstart + 1;
             IMRATextItemInfo startitem = GetItem(oldstart);
             IMRATextItemInfo enditem = GetItem(oldend);
+            /*
+            for (int i = startitem.ID; i <= enditem.ID; i++)
+            {
+                if (!(items[i] is IMRAZoneSkipInfo)) continue;
+                IMRAZoneSkipInfo zsitem = (IMRAZoneSkipInfo)items[i];
+                zsitem.SkipZone.IsSkip = false;
+            }
+            */
             List<IMRATextItemInfo> _items = items.GetRange(0, startitem.ID);
-            ITextPosition current = _items.LastOrDefault()?.End?.NextLine() ?? core.GetFirstPosition();
+            IMRATextItemInfo _last = _items.LastOrDefault();
+            if (_last != null) _last.End = _last.Start?.NextLine()?.Prev() ?? core.GetLastPosition();
+            ITextPosition current = _last?.End?.NextLine() ?? core.GetFirstPosition();
+            // 搜集省略区域
+            skips.Clear();
+            _GatherSkipZone(core);
+            int skipid = 0;
+            while (skipid < skips.Count() && skips[skipid].LineEnd < newstart) skipid++;
+            // 生成中间新部分
             for (int i = newstart; i <= newend; i++)
             {
-                IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), i);
-                newitem.Start = current;
-                current = current?.NextLine();
-                newitem.End = current?.Prev() ?? core.GetLastPosition();
-                _items.Add(newitem);
+                if (skipid < skips.Count() && i == skips[skipid].LineStart)
+                {
+                    IMRAZoneSkipInfo zsitem = skips[skipid++];
+                    zsitem.ID = _items.Count();
+                    zsitem.Start = current;
+                    current = current?.MoveLine(zsitem.LineEnd - zsitem.LineStart + 1);
+                    //for (int j = skip.LineStart; j <= skip.LineEnd; j++)
+                    //    current = current?.NextLine();
+                    zsitem.End = current?.Prev() ?? core.GetLastPosition();
+                    i = zsitem.LineEnd;
+                    _items.Add(zsitem);
+                }
+                else
+                {
+                    IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), i);
+                    newitem.Start = current;
+                    current = current?.NextLine();
+                    newitem.End = current?.Prev() ?? core.GetLastPosition();
+                    _items.Add(newitem);
+                }
             }
             for (int i = enditem.ID + 1; i < items.Count(); i++)
             {
+                if (i == enditem.ID + 1) items[i].Start = current ?? core.GetFirstPosition();
                 if (items[i] is IMRAZoneSkipInfo)
                 {
                     IMRAZoneSkipInfo olditem = (IMRAZoneSkipInfo)items[i];
@@ -254,9 +309,26 @@ namespace Morenan.MRATextBox.View
                 }
             }
             items = _items;
-            ItemsSource = items;
+            InvalidateItemsSource();
         }
 
+        /// <summary> 针对Build系统的行相关结果，对视觉的行项无效化并更新 </summary>
+        protected void _InvalidateItemsByBuildSystem()
+        {
+            // 行数没有更改的情况下
+            if (core.OriginLineStart == core.BuildLineStart && core.OriginLineEnd == core.BuildLineEnd)
+            {
+                IMRATextItemInfo startitem = GetItem(core.OriginLineStart);
+                IMRATextItemInfo enditem = GetItem(core.OriginLineEnd);
+                _InvalidateItems(startitem.ID, enditem.ID - startitem.ID + 1);
+            }
+            // 行数更改的情况下
+            else
+            {
+                _InvalidateLines(core.OriginLineStart, core.OriginLineEnd, core.BuildLineStart, core.BuildLineEnd);
+            }
+        }
+        
         /// <summary> 因为鼠标事件导致当前光标无效化，重新生成一遍 </summary>
         /// <param name="e"></param>
         protected void InvalidateCursor(MouseEventArgs e)
@@ -268,6 +340,9 @@ namespace Morenan.MRATextBox.View
                 Cursor = Cursors.Arrow;
         }
 
+        /// <summary> 根据行数获取实际行项 </summary>
+        /// <param name="line"行数></param>
+        /// <returns>行项</returns>
         public IMRATextItemInfo GetItem(int line)
         {
             int l = 0, r = items.Count() - 1;
@@ -306,6 +381,7 @@ namespace Morenan.MRATextBox.View
         {
             // 实际区域未更改？
             if (core.SelectedStart.CompareTo(_start) == 0 && core.SelectedEnd.CompareTo(_end) == 0) return;
+            /*
             // 旧的选择区域
             int oldlinestart = core.SelectedStart.Line;
             int oldlineend = core.SelectedEnd.Line;
@@ -321,9 +397,22 @@ namespace Morenan.MRATextBox.View
             // 对应的实际项的区域
             IMRATextItemInfo itemstart = null;
             IMRATextItemInfo itemend = null;
+            */
             // 设置新区域
             core.SelectedStart = _start;
             core.SelectedEnd = _end;
+
+            int updatestart = 0;
+            int updatecount = items.Count();
+            if (ui_stack != null)
+            {
+                updatestart = (int)ui_stack.VerticalOffset;
+                updatecount = (int)ui_stack.ViewportHeight;
+                updatecount = Math.Min(updatecount, items.Count() - updatestart);
+            }
+            for (int i = updatestart; i < updatestart + updatecount; i++)
+                items[i]?.View?.InvalidateSelection();
+            /*
             // 两个区域行位置相同，更新同一个内部
             if (oldlinestart == newlinestart && oldlineend == newlineend)
             {
@@ -356,6 +445,7 @@ namespace Morenan.MRATextBox.View
                 for (int i = itemstart.ID; i <= itemend.ID; i++)
                     items[i]?.View?.InvalidateSelection();
             }
+            */
         }
 
         /// <summary> 将选择区域替换为给定文本 </summary>
@@ -363,85 +453,7 @@ namespace Morenan.MRATextBox.View
         public void SelectedReplace(string text)
         {
             core.Replace(core.SelectedStart, core.SelectedEnd, text);
-            // 行数没有更改的情况下
-            if (core.OriginLineStart == core.BuildLineStart && core.OriginLineEnd == core.BuildLineEnd)
-            {
-                IMRATextItemInfo startitem = GetItem(core.OriginLineStart);
-                IMRATextItemInfo enditem = GetItem(core.OriginLineEnd);
-                _InvalidateItems(startitem.ID, enditem.ID - startitem.ID + 1);
-            }
-            else
-                _InvalidateLines(core.OriginLineStart, core.OriginLineEnd, core.BuildLineStart, core.BuildLineEnd);
-            // 更改区域的上一行下一行的位置，不会受到影响的外围可以维持
-            //ITextPosition start = core.SelectedStart?.PrevLine()?.PrevLine()?.Next() ?? core.GetFirstPosition();
-            /*
-            ITextPosition start = core.SelectedStart?.PrevLine();
-            start = start?.PrevLine();
-            start = start?.Next();
-            ITextPosition end = core.SelectedEnd?.NextLine();
-            // 旧的更改区域下一行，为空一般是到达了文本末尾
-            int? poldline = end?.Line;
-            // 旧的行总数
-            int oldlinecount = core.LineCount;
-            core.Replace(core.SelectedStart, core.SelectedEnd, text);
-            // 新的更改区域下一行
-            int? pnewline = core.SelectedEnd.NextLine()?.Line;
-            // 新的行总数
-            int newlinecount = core.LineCount;
-            // CASE 1 : 修改前后都没有到达文本末尾，并且行数没有被更改，为了节省ItemsSource开销，直接修改区域内行项更新
-            if (poldline != null && pnewline != null && poldline.Value == pnewline.Value)
-            {
-                int startline = start?.Line ?? 1;
-                int endline = pnewline.Value;
-                ITextPosition current = start ?? core.GetFirstPosition();
-                IMRATextItemInfo startitem = GetItem(startline);
-                IMRATextItemInfo enditem = GetItem(endline);
-                for (int i = startitem.ID; i <= enditem.ID; i++)
-                {
-                    items[i].Start = current;
-                    if (items[i] is IMRAZoneSkipInfo)
-                    {
-                        IMRAZoneSkipInfo skitem = (IMRAZoneSkipInfo)(items[i]);
-                        for (int j = skitem.LineStart; j <= skitem.LineEnd; j++)
-                            current = current?.NextLine();
-                    }
-                    else
-                    {
-                        current = current?.NextLine();
-                    }
-                    items[i].End = current?.Prev() ?? core.GetLastPosition();
-                    items[i].View?.InvalidateVisual();
-                }
-            }
-            // CASE 2: 修改前后都到达文本末尾，并且行数没有被更改
-            else if (poldline == null && pnewline == null && oldlinecount == newlinecount)
-            {
-                int startline = start?.Line ?? 1;
-                int endline = newlinecount;
-                ITextPosition current = start ?? core.GetFirstPosition();
-                for (int i = startline - 1; i < endline; i++)
-                {
-                    items[i].Start = current;
-                    if (items[i] is IMRAZoneSkipInfo)
-                    {
-                        IMRAZoneSkipInfo skitem = (IMRAZoneSkipInfo)(items[i]);
-                        for (int j = skitem.LineStart; j <= skitem.LineEnd; j++)
-                            current = current?.NextLine();
-                    }
-                    else
-                    {
-                        current = current?.NextLine();
-                    }
-                    items[i].End = current?.Prev() ?? core.GetLastPosition();
-                    items[i].View?.InvalidateVisual();
-                }
-            }
-            // CASE 3: 其他的情况，进行ItemsSource的更新
-            else
-            {
-                InvalidateItems();
-            }
-            */
+            _InvalidateItemsByBuildSystem();
             this.selectedstart = core.SelectedStart;
         }
 
@@ -459,22 +471,119 @@ namespace Morenan.MRATextBox.View
                 return backsapcetext;
             }
             // 执行一次退格，根据退格的行数来更新界面
-            backsapcetext = Core.Backspace();
-            int linecount = backsapcetext.Count(c => c == '\n');
-            if (linecount == 0)
-            {
-                IMRATextItemInfo item = GetItem(Core.SelectedStart.Line);
-                item.Start = Core.SelectedStart.PrevLine()?.Next() ?? Core.GetFirstPosition();
-                item?.View?.InvalidateVisual();
-            }
-            else
-            {
-                InvalidateItems();
-            }
+            backsapcetext = Core.SmartBackspace();
+            _InvalidateItemsByBuildSystem();
             return backsapcetext;
         }
+        
+        /// <summary> 省略一个区域 </summary>
+        /// <param name="item">这个区域的起始行所在的行项</param>
+        protected void CollapseItem(IMRATextItemInfo item)
+        {
+            ITextZone skipzone = item?.View?.OpenZone;
+            if (skipzone == null) return;
+            int linestart = item.Line;
+            int lineend = item.Line + skipzone.LineCount - 1;
+            IMRATextItemInfo itemend = GetItem(lineend);
+            List<IMRATextItemInfo> _items = items.GetRange(0, item.ID);
+            IMRAZoneSkipInfo zsitem = new MRAZoneSkipInfo(core, _items.Count(), linestart, lineend, skipzone);
+            skipzone.IsSkip = true;
+            zsitem.Start = item.Start;
+            zsitem.End = itemend.End;
+            _items.Add(zsitem);
+            for (int i = itemend.ID + 1; i < items.Count(); i++)
+            {
+                items[i].ID = _items.Count();
+                _items.Add(items[i]);
+            }
+            foreach (IMRATextItemInfo _item in _items)
+            {
+                _item.OpenZoneFocus = false;
+                _item.CloseZoneFocus = false;
+                _item.IntoZoneFocus = false;
+                if (_item is IMRAZoneSkipInfo)
+                {
+                    IMRAZoneSkipInfo _zsitem = (IMRAZoneSkipInfo)_item;
+                    _zsitem.SkipZoneFocus = false;
+                }
+            }
+            this.structbarzone = null;
+            this.structbarstart = 0;
+            this.structbarend = -1;
+            items = _items;
+            InvalidateItemsSource();
+        }
 
-        /// <summary> 将指定索引所在项滚动至可视范围 </summary>
+        /// <summary> 展开一个行项 </summary>
+        /// <param name="item">这个区域被压缩的行项</param>
+        protected void ExpandItem(IMRAZoneSkipInfo item)
+        {
+            item.SkipZone.IsSkip = false;
+            InvalidateItems();
+            //int linestart = item.LineStart;
+            //int lineend = item.LineEnd;
+            //List<IMRATextItemInfo> _items = items.GetRange(0, item.ID);
+            //ITextPosition current = item.Start;
+            /*
+            for (int i = linestart; i <= lineend; i++)
+            {
+                IMRATextItemInfo newitem = new MRATextItemInfo(core, _items.Count(), i);
+                newitem.Start = current;
+                current = current?.NextLine();
+                newitem.End = current?.Prev() ?? core.GetLastPosition();
+                _items.Add(newitem);
+            }
+            for (int i = item.ID + 1; i < items.Count(); i++)
+            {
+                items[i].ID = _items.Count();
+                _items.Add(items[i]);
+            }
+            items = _items;
+            InvalidateItemsSource();
+            */
+        }
+        
+        /// <summary> 压缩全部区域 </summary>
+        protected void CollapseAll()
+        {
+            _SetIsSkip_All(core, true);
+            InvalidateItems();
+        }
+
+        /// <summary> 展开全部区域 </summary>
+        protected void ExpandAll()
+        {
+            _SetIsSkip_All(core, false);
+            InvalidateItems();
+        }
+
+        /// <summary> 将区域和内部所有子区域设为压缩或者展开 </summary>
+        /// <param name="zone">区域</param>
+        /// <param name="value">压缩(true)或者展开(false)</param>
+        protected void _SetIsSkip_All(ITextZone zone, bool value)
+        {
+            zone.IsSkip = value;
+            foreach (ITextItem item in zone.Items)
+            {
+                if (!(item is ITextZone)) continue;
+                _SetIsSkip_All((ITextZone)item, value);
+            }
+        }
+
+        /// <summary> 将指定的行项滚动至可视范围 </summary>
+        /// <param name="item">行项</param>
+        public void ScrollIntoView(IMRATextItemInfo item)
+        {
+            if (ui_stack != null)
+            {
+                if (item.ID < ui_stack.ViewStart)
+                    ui_stack.SetVerticalOffset(item.ID);
+                else if (item.ID >= ui_stack.ViewStart + ui_stack.ViewCount - 2)
+                    ui_stack.SetVerticalOffset(item.ID - ui_stack.ViewCount + 2);
+            }
+        }
+
+        /// <summary> 将指定行所在项滚动至可视范围 </summary>
         /// <param name="index">索引</param>
         public void ScrollIntoView(int line)
         {
@@ -482,6 +591,9 @@ namespace Morenan.MRATextBox.View
             if (item != null) ScrollIntoView(item);
         }
 
+        /// <summary> 将指定行列位置所在项滚动至可视范围 </summary>
+        /// <param name="line">行</param>
+        /// <param name="column">列</param>
         public void ScrollIntoView(int line, int column)
         {
             IMRATextItemInfo item = GetItem(line);
@@ -496,12 +608,13 @@ namespace Morenan.MRATextBox.View
             }
         }
 
+        /// <summary> 将指定位置所在项滚动至可视范围 </summary>
+        /// <param name="txtpos">位置</param>
         public void ScrollIntoView(ITextPosition txtpos)
         {
             ScrollIntoView(txtpos.Line, txtpos.Column);
         }
-
-
+        
         /// <summary> 搜集省略域 </summary>
         /// <param name="zone">当前域</param>
         /// <param name="startline">所在行</param>
@@ -562,7 +675,9 @@ namespace Morenan.MRATextBox.View
             // 获取新的鼠标经过的文本域
             if (item.View.StructBarMouseOver)
             {
-                if (item.View.OpenZone != null)
+                if (item.View.SkipZone != null)
+                    _structbarzone = item.View.SkipZone;
+                else if (item.View.OpenZone != null)
                     _structbarzone = item.View.OpenZone;
                 else if (item.View.CloseZone != null)
                     _structbarzone = item.View.CloseZone;
@@ -576,42 +691,74 @@ namespace Morenan.MRATextBox.View
                 if (structbarzone != null)
                 {
                     for (int i = structbarstart; i <= structbarend; i++)
-                        if (items[i]?.View != null) items[i].View.StructBarMouseOver = false;
+                    {
+                        items[i].OpenZoneFocus = false;
+                        items[i].CloseZoneFocus = false;
+                        items[i].IntoZoneFocus = false;
+                        if (items[i] is IMRAZoneSkipInfo)
+                        {
+                            IMRAZoneSkipInfo zsitem = (IMRAZoneSkipInfo)items[i];
+                            zsitem.SkipZoneFocus = false;
+                        }
+                        items[i]?.View?.InvalidateStructBar();
+                    }
                 }
                 // 初始化新界面信息
                 structbarzone = _structbarzone;
-                structbarstart = structbarend = item.Line - 1;
+                structbarstart = structbarend = item.ID;
                 // 更新新界面，向上下查找
                 if (structbarzone != null)
                 {
-                    for (int i = 0; i < items.Count(); i++)
+                    if (item is IMRAZoneSkipInfo)
                     {
-                        IMRATextItemInfo previtem = hitcache.Line - i - 1 >= 0 ? items[item.Line - i - 1] : null;
-                        IMRATextItemInfo nextitem = hitcache.Line + i - 1 < items.Count() ? items[item.Line + i - 1] : null;
-                        if (previtem?.View == null && nextitem?.View == null) break;
-                        // 上方被当前文本域覆盖？
-                        if (previtem?.View != null)
+                        IMRAZoneSkipInfo zsitem = (IMRAZoneSkipInfo)item;
+                        zsitem.SkipZoneFocus = true;
+                    }
+                    else
+                    {
+                        for (int i = 0; i < items.Count(); i++)
                         {
-                            if (structbarzone.IsAncestorOf(previtem.View.OpenZone)
-                             || structbarzone.IsAncestorOf(previtem.View.CloseZone)
-                             || structbarzone.IsAncestorOf(previtem.View.IntoZone))
+                            IMRATextItemInfo previtem = item.ID - i >= 0 ? items[item.ID - i] : null;
+                            IMRATextItemInfo nextitem = item.ID + i < items.Count() ? items[item.ID + i] : null;
+                            bool previs = previtem?.View != null, nextis = nextitem?.View != null;
+                            if (!previs && !nextis) break;
+                            // 上方被当前文本域覆盖？
+                            if (previs)
                             {
-                                previtem.View.StructBarMouseOver = true;
-                                structbarstart = item.Line - i - 1;
+                                if (structbarzone == previtem.View.OpenZone)
+                                    previtem.OpenZoneFocus = true;
+                                else if (structbarzone == previtem.View.CloseZone)
+                                    previtem.CloseZoneFocus = true;
+                                else if (structbarzone.IsAncestorOf(previtem.View.OpenZone)
+                                 || structbarzone.IsAncestorOf(previtem.View.CloseZone)
+                                 || structbarzone.IsAncestorOf(previtem.View.IntoZone))
+                                    previtem.IntoZoneFocus = true;
+                                else
+                                    previs = false;
+                                if (previs)
+                                    structbarstart = previtem.ID;
                             }
-                        }
-                        // 下方被当前文本域覆盖？
-                        if (nextitem?.View != null)
-                        {
-                            if (structbarzone.IsAncestorOf(nextitem.View.OpenZone)
-                             || structbarzone.IsAncestorOf(nextitem.View.CloseZone)
-                             || structbarzone.IsAncestorOf(nextitem.View.IntoZone))
+                            // 下方被当前文本域覆盖？
+                            if (nextis)
                             {
-                                nextitem.View.StructBarMouseOver = true;
-                                structbarend = item.Line + i - 1;
+                                if (structbarzone == nextitem.View.OpenZone)
+                                    nextitem.OpenZoneFocus = true;
+                                else if (structbarzone == nextitem.View.CloseZone)
+                                    nextitem.CloseZoneFocus = true;
+                                else if (structbarzone.IsAncestorOf(nextitem.View.OpenZone)
+                                 || structbarzone.IsAncestorOf(nextitem.View.CloseZone)
+                                 || structbarzone.IsAncestorOf(nextitem.View.IntoZone))
+                                    nextitem.IntoZoneFocus = true;
+                                else
+                                    nextis = false;
+                                if (nextis)
+                                    structbarend = nextitem.ID;
                             }
+                            if (!previs && !nextis) break;
                         }
                     }
+                    for (int i = structbarstart; i <= structbarend; i++)
+                        items[i]?.View?.InvalidateStructBar();
                 }
             }
             return item.View.GetTextPosition(p);
@@ -995,11 +1142,13 @@ namespace Morenan.MRATextBox.View
                     break;
                 case Key.Home:
                     e.Handled = true;
-                    ui_stack.SetVerticalOffset(0);
+                    ui_stack.PageHome();
+                    //ui_stack.SetVerticalOffset(0);
                     break;
                 case Key.End:
                     e.Handled = true;
-                    ui_stack.SetVerticalOffset(ui_stack.ExtentHeight - ui_stack.ViewportHeight);
+                    ui_stack.PageEnd();
+                    //ui_stack.SetVerticalOffset(ui_stack.ExtentHeight - ui_stack.ViewportHeight);
                     break;
             }
         }
@@ -1020,14 +1169,57 @@ namespace Morenan.MRATextBox.View
             {
                 mouseaction = MouseActions.Down;
                 slideaction = SlideActions.None;
-                selectedstart = null;
+                //selectedstart = null;
                 CaptureMouse();
             }
             if (mouseaction == MouseActions.Down)
             {
                 Keyboard.Focus(this);
-                selectedstart = GetTextPosition(e);
-                if (selectedstart != null) SelectedChange(selectedstart, selectedstart);
+                ModifierKeys mkey = Keyboard.PrimaryDevice.Modifiers; 
+                if (mkey == ModifierKeys.Shift)
+                {
+                    if (selectedstart == null)
+                        selectedstart = Core.SelectedStart;
+                    ITextPosition pos = GetTextPosition(e);
+                    if (pos != null)
+                    {
+                        int poscmp = pos.CompareTo(selectedstart);
+                        if (poscmp >= 0)
+                            SelectedChange(selectedstart, pos);
+                        else
+                            SelectedChange(pos, selectedstart);
+                    }
+                }
+                else
+                {
+                    if (e.ClickCount > 1)
+                    {
+                        ITextPosition pos = GetTextPosition(e);
+                        if (pos == null) return;
+                        ITextPosition left = pos.LeftPart.Length > 0 ? pos.PrevItem() : pos;
+                        ITextPosition right = pos.RightPart.Length > 0 ? pos.NextItem() : pos;
+                        selectedstart = left;
+                        SelectedChange(left, right);
+                        mouseaction = MouseActions.Item;
+                    }
+                    else
+                    {
+                        selectedstart = GetTextPosition(e);
+                        if (selectedstart != null)
+                            SelectedChange(selectedstart, selectedstart);
+                        IMRATextItemInfo item = GetTextItemInfo(e);
+                        if (item?.View != null)
+                        {
+                            if (item.View.StructBarMouseOver)
+                            {
+                                if (item.View.SkipZone != null && item is IMRAZoneSkipInfo)
+                                    ExpandItem((IMRAZoneSkipInfo)item);
+                                else if (item.View.OpenZone != null)
+                                    CollapseItem(item);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1036,20 +1228,20 @@ namespace Morenan.MRATextBox.View
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonUp(e);
-            if (mouseaction == MouseActions.Down)
+            if (mouseaction == MouseActions.Down || mouseaction == MouseActions.Item)
             {
                 mouseaction = MouseActions.Up;
                 slideaction = SlideActions.None;
-                selectedstart = null;
+                //selectedstart = null;
                 ReleaseMouseCapture();
             }
         }
-
+        
         /// <summary> 鼠标提前移动时 </summary>
         /// <param name="e"></param>
-        protected override void OnPreviewMouseMove(MouseEventArgs e)
+        protected override void OnMouseMove(MouseEventArgs e)
         {
-            base.OnPreviewMouseMove(e);
+            base.OnMouseMove(e);
             if (mouseaction == MouseActions.Down)
             {
                 if (selectedstart != null)
@@ -1118,6 +1310,7 @@ namespace Morenan.MRATextBox.View
             else
             {
                 InvalidateCursor(e);
+                GetTextPosition(e);
             }
         }
 

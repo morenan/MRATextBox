@@ -16,6 +16,10 @@ namespace Morenan.MRATextBox.View
         ITextPosition Start { get; set; }
         ITextPosition End { get; set; }
         MRATextItemView View { get; set; }
+        bool OpenZoneFocus { get; set; }
+        bool CloseZoneFocus { get; set; }
+        bool IntoZoneFocus { get; set; }
+        bool ContainLine(int _line);
     }
     
     internal class MRATextItemInfo : IMRATextItemInfo
@@ -26,6 +30,9 @@ namespace Morenan.MRATextBox.View
             this.id = _id;
             this.line = _line;
             this.view = null;
+            this.openzonefocus = false;
+            this.closezonefocus = false;
+            this.intozonefocus = false;
         }
 
         private bool isdisposed = false;
@@ -61,12 +68,21 @@ namespace Morenan.MRATextBox.View
 
         private MRATextItemView view;
         public MRATextItemView View { get { return this.view; } set { this.view = value; } }
+        
+        private bool openzonefocus;
+        public bool OpenZoneFocus { get { return this.openzonefocus; } set { this.openzonefocus = value; } }
+
+        private bool closezonefocus;
+        public bool CloseZoneFocus { get { return this.closezonefocus; } set { this.closezonefocus = value; } }
+
+        private bool intozonefocus;
+        public bool IntoZoneFocus { get { return this.intozonefocus; } set { this.intozonefocus = value; } }
 
         #endregion
 
         #region Method
 
-        
+        public bool ContainLine(int _line) { return this.line == _line; }
 
         #endregion
 

@@ -433,7 +433,7 @@ namespace Morenan.MRATextBox.Core
             string nexttext = null;
             int nextindex = itemindex;
             int nextline = line;
-            int nextcolumn = column + 1;
+            int nextcolumn = column;
             if (itemindex >= item.ToString().Length)
             {
                 while (nextitem?.Parent != null && nextitem.ID + 1 >= nextitem.Parent.Items.Count)
@@ -463,7 +463,7 @@ namespace Morenan.MRATextBox.Core
             string prevtext = null;
             int previndex = itemindex;
             int prevline = line;
-            int prevcolumn = column - 1;
+            int prevcolumn = column;
             if (itemindex <= 0)
             {
                 while (previtem?.Parent != null && previtem.ID <= 0)

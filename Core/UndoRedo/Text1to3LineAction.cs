@@ -16,6 +16,9 @@ namespace Morenan.MRATextBox.Core.UndoRedo
         private int tolinenumber;
         public int ToLineNumber { get { return this.tolinenumber; } set { this.tolinenumber = value; } }
 
+        private ITextZone zone;
+        public ITextZone Zone { get { return this.zone; } set { this.zone = value; } }
+
         #endregion
     }
 }

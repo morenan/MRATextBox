@@ -49,5 +49,6 @@ namespace Morenan.MRATextBox.Core.UndoRedo
     {
         int SourceLine { get; set; }
         int ToLineNumber { get; set; }
+        ITextZone Zone { get; set; }
     }
 }

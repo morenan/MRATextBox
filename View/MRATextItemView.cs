@@ -10,6 +10,7 @@ using System.Windows.Media.TextFormatting;
 
 using Morenan.MRATextBox.Core;
 using Morenan.MRATextBox.Core.Documents;
+using Morenan.MRATextBox.Counselor;
 
 namespace Morenan.MRATextBox.View
 {
@@ -22,7 +23,6 @@ namespace Morenan.MRATextBox.View
             this.textfmtr = TextFormatter.Create(TextFormattingMode.Ideal);
             this.textbuilder = new StringBuilder();
             this.fontindics = new List<ITextFontIndex>();
-            this.poscache = null;
             this.structbarmouseover = false;
             this.rawtextmouseover = false;
 
@@ -72,9 +72,11 @@ namespace Morenan.MRATextBox.View
         public WinTextLine TextLine { get { return this.textline; } }
         private StringBuilder textbuilder;
         private List<ITextFontIndex> fontindics;
-        private ITextPosition poscache;
-        private int skipzoneid;
-        public int SkipZoneID { get { return this.skipzoneid; } }
+        //private ITextPosition poscache;
+        private int skipzonestart;
+        public int SkipZoneStart { get { return this.skipzonestart; } }
+        private int skipzonecount;
+        public int SkipZoneCount { get { return this.skipzonecount; } }
         private ITextZone skipzone;
         public ITextZone SkipZone { get { return this.skipzone; } }
         private ITextZone openzone;
@@ -106,7 +108,7 @@ namespace Morenan.MRATextBox.View
             get { return this.rawtextmouseover; }
             set { this.rawtextmouseover = value; }
         }
-
+        
         #endregion
 
         #region DrawingVisual
@@ -137,7 +139,7 @@ namespace Morenan.MRATextBox.View
             textbuilder.Clear();
             fontindics.Clear();
             this.skipzone = null;
-            this.skipzoneid = -1;
+            this.skipzonestart = -1;
             this.openzone = null;
             this.closezone = null;
             this.intozone = null;
@@ -219,9 +221,29 @@ namespace Morenan.MRATextBox.View
                 Brush background = null;
                 Brush foreground = Brushes.Gray;
                 TextCore.DictBrush.TryGetValue("foreground_skipzone", out foreground);
-                skipzoneid = textbuilder.Length;
+                skipzonestart = textbuilder.Length;
+                skipzonecount = 3;
                 fontindics.Add(new TextFontIndex(new TextFontCore(fontstyle, fontstretch, fontfamily, fontweight, fontsize, background, foreground), textbuilder.Length));
+                int showstart = 0;
+                int showend = 0;
+                if (TextCore.View.Counselor != null)
+                {
+                    string zonename = skipzone?.Doc?.Name ?? "{zone_deault}";
+                    MRATextInputContext ictx = new MRATextInputContext(skipzone, 0, 0);
+                    MRAZoneContext zctx = new MRAZoneContext(zonename, ictx, MRAZoneAction.Skip);
+                    IMRAZoneResult zret = TextCore.View.Counselor.ZoneAction(zctx);
+                    if (zret is IMRAZoneSkipResult)
+                    {
+                        IMRAZoneSkipResult zsret = (IMRAZoneSkipResult)zret;
+                        showstart = zsret.ShowStart;
+                        showend = zsret.ShowEnd;
+                    }
+                }
+                for (int i = 0; i < Math.Min(showstart, skipzone.Items.Count); i++)
+                    textbuilder.Append(skipzone.Items[i].ToString());
                 textbuilder.Append("...");
+                for (int i = Math.Max(0, skipzone.Items.Count - showend); i < skipzone.Items.Count; i++)
+                    textbuilder.Append(skipzone.Items[i].ToString());
             }
             void _RemoveZone(ITextItem zone)
             {
@@ -269,6 +291,16 @@ namespace Morenan.MRATextBox.View
                     }
                     startitem = startitem.Parent;
                 }
+            }
+            {
+                ITextItem startitem = Core.Start.Item;
+                ITextItem enditem = Core.End.Item;
+                if (startitem.ID == 0 
+                 && !(startitem.Parent is ITextLine) && !(startitem.Parent is ITextBoxCore) && startitem.Parent.LineCount > 1)
+                    this.openzone = startitem.Parent;
+                if (enditem.ID == enditem.Parent.Items.Count - 1
+                 && !(enditem.Parent is ITextLine) && !(enditem.Parent is ITextBoxCore) && enditem.Parent.LineCount > 1)
+                    this.closezone = enditem.Parent;
             }
             if (Core.Start.Item == Core.End.Item)
             {
@@ -341,7 +373,12 @@ namespace Morenan.MRATextBox.View
                     {
                         item = item.Parent;
                         ITextZone zone = (ITextZone)item;
-                        if (!(zone is ITextLine) && zone.LineCount > 1) this.closezone = zone;
+                        if (!(zone is ITextLine) && zone.LineCount > 1)
+                        {
+                            this.closezone = zone;
+                            if (intozone == null || zone.Level < intozone.Level)
+                                this.intozone = zone;
+                        }
                         _RemoveZone(item);
                     }
                     if (item?.Parent == null) break;
@@ -350,7 +387,12 @@ namespace Morenan.MRATextBox.View
                     while (item is ITextZone)
                     {
                         ITextZone zone = (ITextZone)item;
-                        if (!(zone is ITextLine) && zone.LineCount > 1) this.openzone = zone;
+                        if (!(zone is ITextLine) && zone.LineCount > 1)
+                        {
+                            this.openzone = zone;
+                            if (intozone == null || zone.Level < intozone.Level)
+                                this.intozone = zone;
+                        }
                         _AddZone(zone);
                         item = zone.Items.FirstOrDefault();
                     }
@@ -362,7 +404,6 @@ namespace Morenan.MRATextBox.View
             
             this.textsource = new MRATextSource(textbuilder.ToString(), fontindics);
             this.textline = textfmtr.FormatLine(textsource, 0, 10000.0, new MRATextParagraphProperties(TextCore, textsource), null);
-            this.poscache = null;
         }
 
         public new void InvalidateVisual()
@@ -379,6 +420,11 @@ namespace Morenan.MRATextBox.View
         {
             dvSelection.ForceShow = true;
             dvSelection.InvalidateVisual();
+        }
+
+        public void InvalidateStructBar()
+        {
+            dvStructBar.InvalidateVisual();
         }
 
         public void UpdateMouseOver(Point p)
@@ -416,26 +462,23 @@ namespace Morenan.MRATextBox.View
         public ITextPosition GetTextPosition(int column)
         {
             if (column > textline.Length) column = textline.Length;
-            //if (poscache == null)
-            //{
-                if (column - Core.Start.Column < Core.End.Column - column)
-                    poscache = Core.Start.Move(column - Core.Start.Column);
+            if (Core is IMRAZoneSkipInfo)
+            {
+                IMRAZoneSkipInfo zscore = (IMRAZoneSkipInfo)Core;
+                if (column < skipzonestart)
+                    return Core.Start.Move(column - Core.Start.Column);
+                else if (column > skipzonestart + skipzonecount)
+                    return Core.End.Move(column - textline.Length);
                 else
-                    poscache = Core.End.Move(column - Core.End.Column);
-                return poscache;
-            //}
-            /*
-            int dist1 = column - poscache.Column;
-            int dist2 = column - Core.Start.Column;
-            int dist3 = column - Core.End.Column;
-            if (Math.Abs(dist1) <= Math.Min(Math.Abs(dist2), Math.Abs(dist3)))
-                poscache = poscache.Move(dist1);
-            else if (Math.Abs(dist2) <= Math.Min(Math.Abs(dist1), Math.Abs(dist3)))
-                poscache = Core.Start.Move(dist2);
+                    return null;
+            }
             else
-                poscache = Core.End.Move(dist3);
-            return poscache;
-            */
+            {
+                if (column - Core.Start.Column < Core.End.Column - column)
+                    return Core.Start.Move(column - Core.Start.Column);
+                else
+                    return Core.End.Move(column - Core.End.Column);
+            }
         }
 
         public Rect GetColumnActualRect(int column)
@@ -474,11 +517,20 @@ namespace Morenan.MRATextBox.View
                 {
                     InvalidateVisual();
                     Width = Math.Max(TextCore.View.ActualWidth, textline.Width + TextCore.View.MarginLeft);
-                    Height = textline.Height;
+                    Height = textline.TextHeight;
                     Point p = Mouse.PrimaryDevice.GetPosition(this);
                     UpdateMouseOver(p);
                 }
             }
+        }
+
+        protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+        {
+            base.OnRenderSizeChanged(sizeInfo);
+            dvNumberBar.InvalidateVisual();
+            dvStructBar.InvalidateVisual();
+            dvRawText.InvalidateVisual();
+            dvSelection.InvalidateVisual();
         }
 
         #endregion

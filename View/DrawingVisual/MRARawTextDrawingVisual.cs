@@ -29,10 +29,10 @@ namespace Morenan.MRATextBox.View
         {
             if (Core == null || Core.IsDisposed) return;
             base.Render(ctx);
-            ViewParent?.TextLine?.Draw(ctx, new Point(ViewParent.TextCore.View.MarginLeft, 0), InvertAxes.None);
-            if (ViewParent.SkipZone != null && ViewParent.SkipZoneID >= 0)
+            ViewParent?.TextLine?.Draw(ctx, new Point(ViewParent.TextCore.View.MarginLeft, ViewParent.ActualHeight - ViewParent.TextCore.FontSize), InvertAxes.None);
+            if (ViewParent.SkipZone != null && ViewParent.SkipZoneStart >= 0)
             {
-                TextBounds bound = ViewParent.TextLine.GetTextBounds(ViewParent.SkipZoneID, 3).FirstOrDefault();
+                TextBounds bound = ViewParent.TextLine.GetTextBounds(ViewParent.SkipZoneStart, ViewParent.SkipZoneCount).FirstOrDefault();
                 Brush foreground = Brushes.Gray;
                 ViewParent.TextCore.DictBrush.TryGetValue("foreground_skipzone", out foreground);
                 Pen pen = new Pen(foreground, 1.0);

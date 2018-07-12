@@ -226,7 +226,7 @@ namespace Morenan.MRATextBox.Core
         /// <returns>是</returns>
         public bool IsAncestorOf(ITextItem that)
         {
-            return that.Core == this;
+            return that?.Core == this;
         }
 
         /// <summary> 是否是它的下级？ </summary>
@@ -331,31 +331,52 @@ namespace Morenan.MRATextBox.Core
         /// <param name="text">要替换的新的文本</param>
         public void Replace(ITextPosition start, ITextPosition end, string text)
         {
-            // 旧的选择范围，删除和替换的文本
-            int oldlinestart = start.Line;
-            int oldcolumnstart = start.Column;
-            int oldlineend = end.Line;
-            int oldcolumnend = end.Column;
-            string removedtext = GetText(start, end);
-            string replacedtext = text;
-            // 进行处理
-            bool _oldintentenable = intentenable;
-            intentenable = !text.Equals(" ");
-            replacedtext = _Replace(start, end, text);
-            intentenable = _oldintentenable;
-            // 处理过后新的选择范围
-            int newlinestart = selectedstart.Line;
-            int newcolumnstart = selectedstart.Column;
-            int newlineend = selectedend.Line;
-            int newcolumnend = selectedend.Column;
-            // 建立动作
-            ITextUndoRedoAction action = new TextUndoRedoAction()
+            start = start.PrevSeek();
+            end = end.NextSeek();
+            if (start.CompareTo(end) == 0 && text.Equals("\n")
+             && !(end.Item.Parent is ITextLine) && !(end.Item.Parent is ITextBoxCore) && end.Item.Parent.LineCount == 1)
             {
-                OldLineStart = oldlinestart, OldLineEnd = oldlineend, OldColumnStart = oldcolumnstart, OldColumnEnd = oldcolumnend,
-                NewLineStart = newlinestart, NewLineEnd = newlineend, NewColumnStart = newcolumnstart, NewColumnEnd = newcolumnend,
-                RemovedText = removedtext, ReplacedText = replacedtext
-            };
-            undocore.Add(action);
+                int startline = start.Line;
+                IText1to3LineAction action1 = To3Line(end.Item.Parent, end);
+                undocore.Add(action1);
+                ITextIndentAction action2 = AutoIntent(action1.Zone, 0, action1.Zone.Items.Count);
+                undocore.Add(action2);
+                return;
+            }
+            {
+                // 旧的选择范围，删除和替换的文本
+                int oldlinestart = start.Line;
+                int oldcolumnstart = start.Column;
+                int oldlineend = end.Line;
+                int oldcolumnend = end.Column;
+                string removedtext = GetText(start, end);
+                string replacedtext = text;
+                // 进行处理
+                bool _oldintentenable = intentenable;
+                intentenable = !text.Equals(" ");
+                replacedtext = _Replace(start, end, text);
+                intentenable = _oldintentenable;
+                // 处理过后新的选择范围
+                int newlinestart = selectedstart.Line;
+                int newcolumnstart = selectedstart.Column;
+                int newlineend = selectedend.Line;
+                int newcolumnend = selectedend.Column;
+                // 建立动作
+                ITextUndoRedoAction action = new TextUndoRedoAction()
+                {
+                    OldLineStart = oldlinestart,
+                    OldLineEnd = oldlineend,
+                    OldColumnStart = oldcolumnstart,
+                    OldColumnEnd = oldcolumnend,
+                    NewLineStart = newlinestart,
+                    NewLineEnd = newlineend,
+                    NewColumnStart = newcolumnstart,
+                    NewColumnEnd = newcolumnend,
+                    RemovedText = removedtext,
+                    ReplacedText = replacedtext
+                };
+                undocore.Add(action);
+            }
             
         }
 
@@ -410,6 +431,13 @@ namespace Morenan.MRATextBox.Core
             int count = 0;
             while (start.Item is ITextTrim)
             {
+                if (start.Line == 0 && start.Column == 0)
+                    return String.Empty;
+                if (start.LeftPart.Length == 0)
+                {
+                    start = start.PrevSeek();
+                    continue;
+                }
                 int enterid = start.LeftPart.LastIndexOf('\n');
                 if (enterid >= 0)
                 {
@@ -664,6 +692,7 @@ namespace Morenan.MRATextBox.Core
                 this.originlinestart = 1;
                 this.originlineend = linecount;
                 Replace(0, items.Count(), builditems);
+                if (items.Count() == 0) items.Add(new TextTrim(this, String.Empty) { Parent = this, Level = 0 });
                 this.buildlinestart = 1;
                 this.buildlineend = linecount;
                 intentzone = this;
@@ -682,6 +711,7 @@ namespace Morenan.MRATextBox.Core
                 BuildAppend(_builditems);
                 BuildAppend(_buildzone.GetRange(_buildid + 1, _buildzone.Items.Count() - (_buildid + 1)));
                 BuildEnd();
+                return;
             }
             // 没有就可以直接替换了
             else
@@ -690,6 +720,7 @@ namespace Morenan.MRATextBox.Core
                 this.originlinestart = GetFirstLine(originitem);
                 this.originlineend = GetLastLine(originitem);
                 buildzone.Replace(buildid, 1, builditems);
+                if (buildzone.Items.Count() == 0) buildzone.Add(new TextTrim(this, String.Empty));
                 this.buildlinestart = GetFirstLine(buildzone.Items[buildid]);
                 this.buildlineend = GetLastLine(buildzone.Items[buildid + builditems.Count() - 1]);
                 //AutoIntent(buildzone, buildid, builditems.Count());
@@ -707,10 +738,20 @@ namespace Morenan.MRATextBox.Core
                 waitcaret = null;
                 waitcaretitemindex = -1;
             }
-            if (intentzone != null)
+            // 之前的光标无效
+            else
             {
-                AutoIntent(intentzone, intentstart, intentcount);
+                selectedstart = null;
+                selectedend = null;
             }
+            // 确保所选位置始终确定
+            if (selectedstart == null)
+                selectedstart = GetFirstPosition();
+            if (selectedend == null)
+                selectedend = GetLastPosition();
+            // 最后再执行一次自动缩进
+            if (intentzone != null)
+                AutoIntent(intentzone, intentstart, intentcount);
         }
 
         /// <summary> 往Build系统中添加结构集 </summary>
@@ -1122,7 +1163,20 @@ namespace Morenan.MRATextBox.Core
                     ITextKeyCore keycore = dictonekey[ch];
                     ITextKey key = new TextKey(this, keycore) { ID = builditems.Count() };
                     waititems.Add(key);
-                    if (chid >= start && chid < start + count)
+                    // 对通过最后一个字符合并生成的左括号，自动填充一个空格和对应的右括号
+                    if ((keycore.Feature & TextKeyFeatures.ZoneLeft) != TextKeyFeatures.None
+                        && count > 0 && chid == start + count - 1)
+                    {
+                        // 建议光标插入左括号后面，准备填写括号内容
+                        waitcaret = key;
+                        waitcaretbackindex = 0;
+                        // 添加一个空格和右括号
+                        keycore = keycore.That;
+                        key = new TextKey(this, keycore);
+                        waititems.Add(key);
+                        actual.Append(keycore.Keyword);
+                    }
+                    else if (chid >= start && chid < start + count)
                         actual.Append(ch);
                     continue;
                 }
@@ -1244,8 +1298,8 @@ namespace Morenan.MRATextBox.Core
         /// <param name="count">域内自动缩进项的长度</param>
         /// <returns>执行的缩进动作</returns>
         public ITextIndentAction AutoIntent(ITextZone zone, int start, int count)
-        {
-            if (!intentenable) return null;
+        {   
+            if (!intentenable || count == 0) return null;
             int intentlinestart = GetFirstLine(zone.Items[start]);
             int intentlineend = GetLastLine(zone.Items[start + count - 1]);
             ITextIndentAction action = new TextIndentAction();
@@ -1329,26 +1383,43 @@ namespace Morenan.MRATextBox.Core
         /// <summary> 将缩在1行的域扩展为3行 </summary>
         /// <param name="zone">一行域</param>
         /// <returns>1to3动作</returns>
-        public IText1to3LineAction To3Line(ITextZone zone)
+        public IText1to3LineAction To3Line(ITextZone zone, ITextPosition pos)
         {
             IText1to3LineAction action = null;
-            if (zone.Parent != null && zone.Parent.LineCount == 1)
-                action = To3Line(zone.Parent);
-            else
-                action = new Text1to3LineAction() { SourceLine = GetFirstLine(zone), ToLineNumber = 1 };
-            action.OldLineStart = selectedstart.Line;
-            action.OldLineEnd = selectedend.Line;
-            action.OldColumnStart = selectedstart.Column;
-            action.OldColumnEnd = selectedend.Column;
+            ITextPosition _selectedstart = selectedstart.Clone();
+            ITextPosition _selectedend = selectedend.Clone();
+            //if (zone.Parent != null && !(zone.Parent is ITextLine) && !(zone.Parent is ITextBoxCore) && zone.Parent.LineCount == 1)
+            //    action = To3Line(zone.Parent, pos);
+            //else
+                action = new Text1to3LineAction() { SourceLine = pos.Line, ToLineNumber = 1, Zone = zone };
+            action.OldLineStart = _selectedstart.Line;
+            action.OldLineEnd = _selectedstart.Line;
+            action.OldColumnStart = _selectedstart.Column;
+            action.OldColumnEnd = _selectedend.Column;
             action.ToLineNumber += 2;
-            zone.Replace(1, 0, new ITextItem[] { new TextTrim(this, "\n") });
-            zone.Replace(zone.Items.Count - 2, 0, new ITextItem[] { new TextTrim(this, "\n") });
-            selectedstart = GetFirstPosition(zone.Items[zone.Items.Count - 2]);
+            if (pos.Item is ITextTrim)
+                zone.Replace(pos.Item.ID, 1, new ITextTrim[] { new TextTrim(this, "\n") });
+            else
+                zone.Replace(pos.Item.ID, 0, new ITextItem[] { new TextTrim(this, "\n") });
+            if (zone.Items[zone.Items.Count - 2] is ITextTrim)
+            {
+                zone.Replace(zone.Items.Count - 2, 1, new ITextTrim[] { new TextTrim(this, zone.Items[zone.Items.Count - 2] + "\n") });
+                selectedstart = GetLastPosition(zone.Items[zone.Items.Count - 2]).Move(-1);
+            }
+            else
+            {
+                zone.Replace(zone.Items.Count - 2, 0, new ITextItem[] { new TextTrim(this, "\n") });
+                selectedstart = GetFirstPosition(zone.Items[zone.Items.Count - 2]);
+            }
             selectedend = selectedstart.Clone();
             action.NewLineStart = selectedstart.Line;
             action.NewLineEnd = selectedend.Line;
             action.NewColumnStart = selectedstart.Column;
             action.NewColumnEnd = selectedend.Column;
+            this.originlinestart = pos.Line;
+            this.originlineend = pos.Line;
+            this.buildlinestart = pos.Line;
+            this.buildlineend = pos.Line + action.ToLineNumber - 1;
             return action;
         }
 

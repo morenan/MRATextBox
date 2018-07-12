@@ -4,9 +4,9 @@
     <Color name="foreground_structbar_normal" value="#FF808080"/>
     <Color name="background_structbar_normal_mouseover" value="#00000000"/>
     <Color name="foreground_structbar_normal_mouseover" value="#FF000000"/>
-    <Color name="background_structbar_inside" value="#00000000"/>
+    <Color name="background_structbar_inside" value="#FFF8F8F8"/>
     <Color name="foreground_structbar_inside" value="#FF404040"/>
-    <Color name="background_structbar_inside_mouseover" value="#00000000"/>
+    <Color name="background_structbar_inside_mouseover" value="#FFFFFFFF"/>
     <Color name="foreground_structbar_inside_mouseover" value="#FF000000"/>
     <Color name="foreground_skipzone" value="#FFA0A0A0"/>
     <Color name="foreground_linenumber" value="#FFA0A060"/>
@@ -16,6 +16,8 @@
     <Color name="foreground_cltbox_selected" value="#FFFFFFFF"/>
     <Color name="background_rawtext_selected" value="#FF80C0E8"/>
     <Color name="foreground_rawtext_caret" value="#FF000000"/>
+    <Color name="background_rawtext_bracket" value="#FFB2EB9C"/>
+    <Color name="background_rawtext_defaultmatch" value="#FFD9F3FE"/>
   </ColorCollection>
   <ValueCollection>
     <Value name="margin_numberbar" value="0.0"/>

@@ -12,6 +12,7 @@ namespace Morenan.MRATextBox.View
         int LineStart { get; set; }
         int LineEnd { get; set; }
         ITextZone SkipZone { get; set; }
+        bool SkipZoneFocus { get; set; }
     }
 
     internal class MRAZoneSkipInfo : IMRAZoneSkipInfo
@@ -19,9 +20,13 @@ namespace Morenan.MRATextBox.View
         public MRAZoneSkipInfo(ITextBoxCore _core, int _id, int _linestart, int _lineend, ITextZone _skipzone)
         {
             this.core = _core;
+            this.id = _id;
             this.linestart = _linestart;
             this.lineend = _lineend;
             this.skipzone = _skipzone;
+            this.openzonefocus = false;
+            this.closezonefocus = false;
+            this.intozonefocus = false;
         }
 
         private bool isdisposed = false;
@@ -66,8 +71,26 @@ namespace Morenan.MRATextBox.View
 
         private MRATextItemView view;
         public MRATextItemView View { get { return this.view; } set { this.view = value; } }
-        
+
+        private bool openzonefocus;
+        public bool OpenZoneFocus { get { return this.openzonefocus; } set { this.openzonefocus = value; } }
+
+        private bool closezonefocus;
+        public bool CloseZoneFocus { get { return this.closezonefocus; } set { this.closezonefocus = value; } }
+
+        private bool intozonefocus;
+        public bool IntoZoneFocus { get { return this.intozonefocus; } set { this.intozonefocus = value; } }
+
+        private bool skipzonefocus;
+        public bool SkipZoneFocus { get { return this.skipzonefocus; } set { this.skipzonefocus = value; } }
+
         #endregion
-        
+
+        #region Method
+
+        public bool ContainLine(int _line) { return _line >= this.linestart && _line <= this.lineend; }
+
+        #endregion
+
     }
 }

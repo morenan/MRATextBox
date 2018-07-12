@@ -45,7 +45,21 @@ namespace Morenan.MRATextBox.Core
         public int SkipCount { get { return this.skipcount; } set { this.skipcount = value; } }
 
         private bool isskip;
-        public bool IsSkip { get { return this.isskip; } set { skipcount -= isskip ? 1 : 0; this.isskip = value; skipcount += isskip ? 1 : 0; } }
+        public bool IsSkip
+        {
+            get
+            {
+                return this.isskip;
+            }
+            set
+            {
+                for (ITextZone zone = this; zone != null; zone = zone.Parent)
+                    zone.SkipCount -= isskip ? 1 : 0;
+                this.isskip = value;
+                for (ITextZone zone = this; zone != null; zone = zone.Parent)
+                    zone.SkipCount += isskip ? 1 : 0;
+            }
+        }
 
         public override int Level
         {
